@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 
@@ -23,14 +24,22 @@ class Settings(BaseSettings):
 
     # 360dialog
     D360_API_URL: str = "https://waba.360dialog.io/v1"
-    D360_PARTNER_TOKEN: str
+    D360_PARTNER_TOKEN: str = "placeholder"
 
     # Webhook
-    WEBHOOK_SECRET_PATH: str
+    WEBHOOK_SECRET_PATH: str = "dev-webhook-secret-path"
 
     # App
-    PUBLIC_APP_URL: str
-    ALLOWED_ORIGINS: List[str] = []
+    PUBLIC_APP_URL: str = "http://localhost:5173"
+    ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
+
+    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @classmethod
+    def parse_origins(cls, v: object) -> object:
+        """Accept both comma-separated string and list."""
+        if isinstance(v, str):
+            return [o.strip() for o in v.split(",") if o.strip()]
+        return v
 
 
 settings = Settings()

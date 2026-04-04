@@ -13,8 +13,9 @@ export const useQueueStore = defineStore('queue', () => {
 
     const auth = useAuthStore()
     const token = auth.accessToken
-    const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
-    const url = `${protocol}://${location.host}/api/v1/queue/ws/${tenantId}?token=${token}`
+    const wsBase = import.meta.env.VITE_WS_URL
+      || (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host
+    const url = `${wsBase}/api/v1/queue/ws/${tenantId}?token=${token}`
 
     const socket = new WebSocket(url)
 
