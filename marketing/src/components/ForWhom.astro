@@ -1,0 +1,81 @@
+---
+import { rtlLangs, type Lang, type Translations } from '../i18n'
+
+interface Props { lang: Lang; t: Translations }
+const { lang, t } = Astro.props
+const isRTL = rtlLangs.includes(lang)
+
+const industries = [
+  {
+    label: t.forWhom.item1,
+    emoji: '🚿',
+    img: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=480&q=80&auto=format&fit=crop',
+    color: 'from-sky-900/70 to-sky-900/30',
+  },
+  {
+    label: t.forWhom.item2,
+    emoji: '🔧',
+    img: 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=480&q=80&auto=format&fit=crop',
+    color: 'from-orange-900/70 to-orange-900/30',
+  },
+  {
+    label: t.forWhom.item3,
+    emoji: '🛞',
+    img: 'https://images.unsplash.com/photo-1607603750909-408681673e2d?w=480&q=80&auto=format&fit=crop',
+    color: 'from-gray-900/80 to-gray-900/30',
+  },
+  {
+    label: t.forWhom.item4,
+    emoji: '💅',
+    img: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=480&q=80&auto=format&fit=crop',
+    color: 'from-pink-900/70 to-pink-900/30',
+  },
+  {
+    label: t.forWhom.item5,
+    emoji: '✂️',
+    img: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=480&q=80&auto=format&fit=crop',
+    color: 'from-amber-900/70 to-amber-900/30',
+  },
+  {
+    label: t.forWhom.item6,
+    emoji: '🏢',
+    img: 'https://images.unsplash.com/photo-1567818735868-e71b99932e29?w=480&q=80&auto=format&fit=crop',
+    color: 'from-indigo-900/70 to-indigo-900/30',
+  },
+]
+---
+
+<section id="for-whom" class="py-24 px-4 sm:px-6 bg-white">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-14 reveal">
+      <p class="text-indigo-600 font-semibold text-sm uppercase tracking-widest mb-2">
+        {lang === 'ar' ? 'القطاعات' : lang === 'ru' ? 'Отрасли' : 'Industries'}
+      </p>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">{t.forWhom.title}</h2>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+      {industries.map(({ label, emoji, img, color }, i) => (
+        <div class={`reveal reveal-delay-${(i % 3) + 1} group relative rounded-2xl overflow-hidden cursor-default aspect-[4/3]`}>
+          <!-- Photo -->
+          <img
+            src={img}
+            alt={label}
+            loading="lazy"
+            class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          />
+          <!-- Gradient overlay -->
+          <div class={`absolute inset-0 bg-gradient-to-t ${color} transition-opacity duration-300 group-hover:opacity-90`}></div>
+          <!-- Content -->
+          <div class="absolute inset-0 flex flex-col items-center justify-end pb-5 px-3 text-center">
+            <span class="text-3xl mb-2 drop-shadow-lg group-hover:scale-125 transition-transform">{emoji}</span>
+            <p class="text-white font-bold text-sm sm:text-base drop-shadow-md">{label}</p>
+          </div>
+          <!-- Hover shine -->
+          <div class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+               style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%)"></div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>

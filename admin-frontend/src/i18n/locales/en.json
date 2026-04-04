@@ -1,0 +1,167 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "tenants": "Tenants",
+    "plans": "Plans",
+    "analytics": "Analytics",
+    "logout": "Logout"
+  },
+  "auth": {
+    "title": "Super Admin",
+    "email": "Email",
+    "password": "Password",
+    "login": "Sign in",
+    "error": "Invalid credentials"
+  },
+  "dashboard": {
+    "title": "Platform Overview",
+    "totalTenants": "Total Tenants",
+    "active": "Active",
+    "trial": "Trial",
+    "mrr": "MRR",
+    "visits30d": "Visits (30d)",
+    "recentTenants": "Recent Tenants",
+    "topActivity": "Top by Activity"
+  },
+  "tenants": {
+    "title": "Tenants",
+    "search": "Search by name or slug...",
+    "addTenant": "Add Tenant",
+    "all": "All",
+    "trial": "Trial",
+    "active": "Active",
+    "pastDue": "Past Due",
+    "cancelled": "Cancelled",
+    "cols": {
+      "name": "Name",
+      "slug": "Slug",
+      "plan": "Plan",
+      "status": "Status",
+      "customers": "Customers",
+      "visits30d": "Visits 30d",
+      "mrr": "MRR",
+      "trialEnds": "Trial Ends",
+      "actions": "Actions"
+    },
+    "actions": {
+      "view": "View",
+      "activate": "Activate",
+      "deactivate": "Deactivate"
+    },
+    "empty": "No tenants found",
+    "newTenant": "New Tenant",
+    "creating": "Creating...",
+    "create": "Create",
+    "cancel": "Cancel",
+    "businessType": "Business Type",
+    "types": {
+      "auto_service": "Auto Service",
+      "barbershop": "Barbershop",
+      "beauty_salon": "Beauty Salon"
+    }
+  },
+  "tenantDetail": {
+    "back": "Back to Tenants",
+    "basicInfo": "Basic Information",
+    "name": "Name",
+    "slug": "Slug",
+    "phone": "Phone",
+    "created": "Created",
+    "status": "Status",
+    "acceptingQueue": "Accepting Queue",
+    "credentials360": "360dialog (WhatsApp)",
+    "channelId": "Channel ID",
+    "apiKey": "API Key",
+    "subscription": "Subscription",
+    "plan": "Plan",
+    "subStatus": "Status",
+    "trialEnds": "Trial Ends",
+    "periodEnd": "Period End",
+    "extendTrial": "Extend Trial",
+    "extendDays": "Days",
+    "activate": "Activate",
+    "deactivate": "Deactivate"
+  },
+  "addTenantModal": {
+    "title": "Add New Tenant",
+    "businessName": "Business Name",
+    "slug": "Slug",
+    "slugHint": "Only lowercase letters, numbers and hyphens",
+    "phone": "Phone",
+    "adminEmail": "Admin Email",
+    "adminPassword": "Admin Password",
+    "plan": "Plan",
+    "cancel": "Cancel",
+    "create": "Create Tenant",
+    "webhookInstructions": "Set webhook URL in 360dialog Hub to:",
+    "webhookNext": "Then add d360_api_key and d360_channel_id in tenant settings.",
+    "apiKey": "360dialog API Key",
+    "channelId": "360dialog Channel ID"
+  },
+  "analytics": {
+    "title": "Platform Analytics",
+    "mrrHistory": "MRR History",
+    "topTenants": "Top Tenants by Revenue",
+    "planDistribution": "Plan Distribution",
+    "months": "months"
+  },
+  "plans": {
+    "starter": "Starter",
+    "pro": "Pro",
+    "business": "Business",
+    "enterprise": "Enterprise"
+  },
+  "statuses": {
+    "trial": "Trial",
+    "active": "Active",
+    "past_due": "Past Due",
+    "cancelled": "Cancelled",
+    "inactive": "Inactive"
+  },
+  "plans": {
+    "title": "Plans",
+    "addPlan": "Add Plan",
+    "editPlan": "Edit Plan",
+    "price": "Price",
+    "features": "Features",
+    "onePerLine": "one per line",
+    "featuresPlaceholder": "Unlimited queues\nFull CRM\nPriority support",
+    "sortOrder": "Sort Order",
+    "archived": "Archived",
+    "archive": "Archive",
+    "restore": "Restore",
+    "noFeatures": "No features listed"
+  },
+  "subscription": {
+    "editTitle": "Edit Subscription",
+    "plan": "Plan",
+    "status": "Status",
+    "customPrice": "Custom Price (USD/mo)",
+    "customPriceHint": "Leave empty to use plan default price",
+    "discount": "Discount %",
+    "discountHint": "0–100. Applied on top of custom price if set",
+    "notes": "Internal Notes",
+    "save": "Save Changes",
+    "effectivePrice": "Effective price"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "yes": "Yes",
+    "no": "No",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "reveal": "Reveal",
+    "hide": "Hide",
+    "noData": "No data",
+    "extended": "Extended by {days} days",
+    "failed": "Action failed"
+  },
+  "impersonation": {
+    "banner": "Impersonation mode — Tenant: {name}",
+    "exit": "Exit"
+  }
+}

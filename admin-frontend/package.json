@@ -1,0 +1,30 @@
+{
+  "name": "queuecrm-admin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --port 5174"
+  },
+  "dependencies": {
+    "@tanstack/vue-query": "^5.74.4",
+    "axios": "^1.8.4",
+    "date-fns": "^4.1.0",
+    "pinia": "^2.3.1",
+    "vue": "^3.5.13",
+    "vue-i18n": "^9.14.5",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.1",
+    "vue-tsc": "^2.2.10"
+  }
+}

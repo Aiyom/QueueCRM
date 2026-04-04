@@ -1,0 +1,108 @@
+export const en = {
+  meta: {
+    title: "QueueCRM — WhatsApp Queue Management for Auto Business",
+    description: "Manage queues and customers via WhatsApp. No app needed. For car washes, service centers, salons.",
+  },
+  nav: {
+    howItWorks: "How it works",
+    forWhom: "For whom",
+    pricing: "Pricing",
+    startTrial: "Start free trial",
+  },
+  hero: {
+    badge: "Built for Saudi Arabia",
+    headline: "Customers don't wait — they arrive on time",
+    subheadline: "WhatsApp queue management. No app. Works on any phone.",
+    cta: "Start 30-day free trial",
+    ctaSecondary: "See how it works",
+    stat1: "97%",
+    stat1label: "WhatsApp penetration in KSA",
+    stat2: "−40%",
+    stat2label: "Reduction in lost customers",
+    stat3: "30 min",
+    stat3label: "Setup time",
+  },
+  problem: {
+    title: "Sound familiar?",
+    item1: "Customers arrive, wait, and leave",
+    item2: "No transparency on wait time",
+    item3: "No customer records or visit history",
+    item4: "Manual, unorganized communication",
+  },
+  howItWorks: {
+    title: "How it works",
+    step1title: "Customer sends a message",
+    step1desc: "Texts on WhatsApp or scans QR code at the entrance",
+    step2title: "Bot replies instantly",
+    step2desc: "Picks service, sees position in queue and estimated wait",
+    step3title: "Automatic notification",
+    step3desc: '"Your turn in 20 minutes" — customer arrives right on time',
+  },
+  forWhom: {
+    title: "Perfect for",
+    item1: "Car washes",
+    item2: "Service centers",
+    item3: "Tire shops",
+    item4: "Beauty salons",
+    item5: "Barbershops",
+    item6: "Dealerships",
+  },
+  pricing: {
+    title: "Pricing",
+    subtitle: "30-day free trial — no credit card required",
+    perMonth: "/ month",
+    popular: "Most popular",
+    currency: "SAR",
+    plans: {
+      starter: {
+        name: "Starter",
+        price: "50",
+        priceSAR: "188",
+        desc: "For small businesses",
+        features: ["Single queue", "WhatsApp notifications", "Basic dashboard", "Support"],
+      },
+      pro: {
+        name: "Pro",
+        price: "150",
+        priceSAR: "563",
+        desc: "For busy businesses",
+        features: ["Unlimited queues", "Full CRM", "VIP priority", "Advanced analytics", "Priority support"],
+      },
+      business: {
+        name: "Business",
+        price: "300",
+        priceSAR: "1125",
+        desc: "For chains and networks",
+        features: ["Multiple branches", "Advanced reports", "Custom integration", "Account manager", "SLA guarantee"],
+      },
+    },
+  },
+  faq: {
+    title: "FAQ",
+    items: [
+      {
+        q: "Does the customer need to install an app?",
+        a: "No. Everything works through WhatsApp they already have.",
+      },
+      {
+        q: "How does a customer join the queue?",
+        a: "They scan a QR code at the entrance or message the WhatsApp number directly.",
+      },
+      {
+        q: "Does it support Arabic?",
+        a: "Yes, the system auto-detects the language from the customer's message.",
+      },
+      {
+        q: "What if I'm not tech-savvy?",
+        a: "Setup takes 30 minutes. Our team guides you through every step.",
+      },
+    ],
+  },
+  footer: {
+    tagline: "WhatsApp queue management",
+    contact: "Contact us",
+    whatsapp: "WhatsApp",
+    rights: "All rights reserved",
+  },
+  whatsappButton: "Chat with us",
+}

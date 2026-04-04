@@ -1,0 +1,79 @@
+---
+import { rtlLangs, type Lang, type Translations } from '../i18n'
+
+interface Props { lang: Lang; t: Translations }
+const { lang, t } = Astro.props
+const isRTL = rtlLangs.includes(lang)
+
+const steps = [
+  {
+    icon: '📱',
+    title: t.howItWorks.step1title,
+    desc:  t.howItWorks.step1desc,
+    color: 'from-indigo-500 to-indigo-600',
+    bg:    'bg-indigo-50',
+    border:'border-indigo-100',
+  },
+  {
+    icon: '🤖',
+    title: t.howItWorks.step2title,
+    desc:  t.howItWorks.step2desc,
+    color: 'from-violet-500 to-violet-600',
+    bg:    'bg-violet-50',
+    border:'border-violet-100',
+  },
+  {
+    icon: '🔔',
+    title: t.howItWorks.step3title,
+    desc:  t.howItWorks.step3desc,
+    color: 'from-emerald-500 to-emerald-600',
+    bg:    'bg-emerald-50',
+    border:'border-emerald-100',
+  },
+]
+---
+
+<section id="how-it-works" class="py-24 px-4 sm:px-6 bg-gray-50 relative overflow-hidden">
+  <!-- Background blob -->
+  <div class="absolute top-0 right-0 w-96 h-96 bg-indigo-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+
+  <div class="relative max-w-5xl mx-auto">
+    <div class="text-center mb-16 reveal">
+      <p class="text-indigo-600 font-semibold text-sm uppercase tracking-widest mb-2">
+        {lang === 'ar' ? 'آلية العمل' : lang === 'ru' ? 'Принцип работы' : 'How It Works'}
+      </p>
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-gray-900">{t.howItWorks.title}</h2>
+    </div>
+
+    <!-- Steps -->
+    <div class="relative">
+      <!-- Connecting line (desktop) -->
+      <div class={`hidden md:block absolute top-12 h-0.5 bg-gradient-to-r from-indigo-200 via-violet-200 to-emerald-200 ${isRTL ? 'right-[calc(16.67%+1.5rem)] left-[calc(16.67%+1.5rem)]' : 'left-[calc(16.67%+1.5rem)] right-[calc(16.67%+1.5rem)]'}`}></div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {steps.map(({ icon, title, desc, color, bg, border }, i) => (
+          <div class={`reveal reveal-delay-${i + 1} text-center group`}>
+            <!-- Icon circle -->
+            <div class="relative inline-flex mb-6">
+              <div class={`w-24 h-24 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center text-4xl shadow-lg group-hover:scale-110 transition-transform`}>
+                {icon}
+              </div>
+              <div class="absolute -top-2 -right-2 w-7 h-7 bg-white border-2 border-gray-200 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 shadow">
+                {i + 1}
+              </div>
+            </div>
+            <h3 class="font-bold text-gray-900 text-lg mb-2">{title}</h3>
+            <p class="text-gray-500 text-sm leading-relaxed">{desc}</p>
+
+            <!-- Sample chat bubble on step 3 -->
+            {i === 2 && (
+              <div class={`mt-4 inline-block ${bg} border ${border} rounded-xl px-4 py-2 text-sm font-medium text-emerald-700`}>
+                {lang === 'ar' ? '📍 دورك بعد 20 دقيقة' : lang === 'ru' ? '📍 Ваша очередь через 20 мин' : '📍 Your turn in 20 min'}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

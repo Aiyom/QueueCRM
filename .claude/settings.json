@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile app/core/security.py app/core/deps.py app/schemas/auth.py app/api/v1/auth.py app/api/router.py app/main.py)",
+      "Bash(pip3 show:*)",
+      "Bash(pip3 list:*)",
+      "Bash(python3 -m venv .venv)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(.venv/bin/python3 -c \"from dotenv import load_dotenv; load_dotenv\\('.env.test', override=True\\); from app.core.config import settings; print\\(settings.DATABASE_URL\\)\")",
+      "Bash(docker exec:*)",
+      "Bash(.venv/bin/python3 -m pytest tests/test_auth.py -v)",
+      "Bash(.venv/bin/python3 -m pytest tests/test_queue.py -v)",
+      "Bash(.venv/bin/python3 -m pytest tests/test_webhook.py -v)",
+      "Bash(.venv/bin/python3 -m pytest tests/test_crm.py -v)",
+      "Bash(.venv/bin/python3 -m pytest tests/ -v --tb=short)",
+      "Bash(.venv/bin/alembic upgrade:*)",
+      "Bash(.venv/bin/python3 scripts/seed.py)",
+      "Bash(.venv/bin/python3 -c \"from app.main import app; print\\('App loaded OK'\\)\")",
+      "Bash(.venv/bin/python3 -m pytest tests/ --tb=short)",
+      "Bash(.venv/bin/uvicorn app.main:app --reload --port 8000)",
+      "Bash(curl -s http://localhost:8000/health)",
+      "Bash(npm --version)",
+      "Bash(npm install:*)",
+      "Bash(python -c \"from app.api.v1.admin import router; print\\('admin router OK'\\)\")",
+      "Bash(python3 -c \"from app.api.v1.admin import router; print\\('admin router OK'\\)\")",
+      "Read(//private/tmp/**)",
+      "Bash(npm run:*)",
+      "Bash(echo \"frontend PID $!\")",
+      "Bash(echo \"admin-frontend PID $!\")",
+      "Bash(curl -s http://localhost:8000/api/v1/admin/tenants -H \"Authorization: Bearer invalid\")",
+      "Bash(npx astro:*)",
+      "Bash(echo \"PID $!\")",
+      "Read(//tmp/**)",
+      "Bash(curl -s -X POST http://localhost:8000/api/v1/auth/super-admin/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@queuecrm.sa\",\"password\":\"Admin@1234\"}')",
+      "Bash(curl -s http://localhost:8000/api/v1/admin/plans -H \"Authorization: Bearer $\\(curl -s -X POST http://localhost:8000/api/v1/auth/super-admin/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@queuecrm.sa\",\"password\":\"Admin@1234\"}')",
+      "Bash(pkill -f \"astro dev\")",
+      "Bash(curl -s http://localhost:8000/api/v1/plans/)",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
+    ]
+  }
+}

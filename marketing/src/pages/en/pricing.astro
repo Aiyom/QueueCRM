@@ -1,0 +1,16 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import { en } from '../../i18n/en'
+import Pricing from '../../components/Pricing.astro'
+import Footer from '../../components/Footer.astro'
+
+const t = en
+const lang = 'en' as const
+---
+
+<Layout lang={lang} title={t.pricing.title + ' — QueueCRM'} description={t.meta.description} t={t}>
+  <div class="pt-8">
+    <Pricing lang={lang} t={t} />
+  </div>
+  <Footer lang={lang} t={t} />
+</Layout>

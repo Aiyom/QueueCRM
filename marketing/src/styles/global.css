@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Scroll reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.65s ease, transform 0.65s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+
+/* ── Float animation ── */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+.float { animation: float 4s ease-in-out infinite; }
+.float-slow { animation: float 6s ease-in-out infinite; }
+.float-delay { animation: float 5s ease-in-out 1s infinite; }
+
+/* ── Hero gradient pulse ── */
+@keyframes gradMove {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+.grad-animate {
+  background-size: 200% 200%;
+  animation: gradMove 8s ease infinite;
+}
+
+/* ── Bubble pop ── */
+@keyframes bubblePop {
+  0%   { opacity: 0; transform: scale(0.7) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.bubble { animation: bubblePop 0.4s ease forwards; }
+.bubble-d1 { animation-delay: 0.6s; opacity: 0; }
+.bubble-d2 { animation-delay: 1.2s; opacity: 0; }
+.bubble-d3 { animation-delay: 1.9s; opacity: 0; }
+.bubble-d4 { animation-delay: 2.6s; opacity: 0; }
+.bubble-d5 { animation-delay: 3.2s; opacity: 0; }
+
+/* ── Shimmer on stat cards ── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ── Glow border ── */
+.glow-border {
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 20px 60px -10px rgba(99,102,241,0.25);
+}
+
+/* ── Phone mockup ── */
+.phone-frame {
+  border-radius: 36px;
+  box-shadow:
+    0 0 0 2px #1f2937,
+    0 0 0 5px #111827,
+    0 30px 80px rgba(0,0,0,0.35);
+}
+
+/* ── Number counter ── */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.count-up { animation: countUp 0.6s ease forwards; }

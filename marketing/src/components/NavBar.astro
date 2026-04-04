@@ -1,0 +1,54 @@
+---
+import { rtlLangs, type Lang, type Translations } from '../i18n'
+
+interface Props { lang: Lang; t: Translations }
+const { lang, t } = Astro.props
+const isRTL = rtlLangs.includes(lang)
+const dashboardUrl = import.meta.env.PUBLIC_DASHBOARD_URL || 'https://app.qcrm.sa'
+
+function langUrl(targetLang: string) {
+  return Astro.url.pathname.replace(`/${lang}/`, `/${targetLang}/`) || `/${targetLang}/`
+}
+---
+
+<header class="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100/80 shadow-sm">
+  <nav class={`max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between ${isRTL ? 'flex-row-reverse' : ''}`}>
+    <!-- Logo -->
+    <a href={`/${lang}/`} class={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+      <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center shadow-md">
+        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z"/>
+          <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z"/>
+        </svg>
+      </div>
+      <span class="font-bold text-gray-900 text-lg tracking-tight">QueueCRM</span>
+    </a>
+
+    <!-- Links -->
+    <div class={`hidden md:flex items-center gap-7 text-sm font-medium ${isRTL ? 'flex-row-reverse' : ''}`}>
+      <a href="#how-it-works" class="text-gray-500 hover:text-gray-900 transition">{t.nav.howItWorks}</a>
+      <a href="#for-whom"     class="text-gray-500 hover:text-gray-900 transition">{t.nav.forWhom}</a>
+      <a href="#pricing"      class="text-gray-500 hover:text-gray-900 transition">{t.nav.pricing}</a>
+    </div>
+
+    <!-- Right -->
+    <div class={`flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+      <div class="hidden sm:flex items-center gap-1 bg-gray-100 rounded-full px-1 py-1">
+        {(['ar','en','ru'] as const).map(l => (
+          <a href={langUrl(l)} class={`px-2.5 py-0.5 text-xs font-semibold rounded-full transition ${lang === l ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
+            {l.toUpperCase()}
+          </a>
+        ))}
+      </div>
+      <a
+        href={`${dashboardUrl}/login`}
+        class="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white text-sm font-semibold px-4 py-2 rounded-full shadow-md shadow-indigo-200 transition"
+      >
+        {t.nav.startTrial}
+      </a>
+    </div>
+  </nav>
+</header>
+
+<!-- Spacer for fixed nav -->
+<div class="h-16"></div>

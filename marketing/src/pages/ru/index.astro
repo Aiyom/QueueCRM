@@ -1,0 +1,22 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import { ru } from '../../i18n/ru'
+import Hero from '../../components/Hero.astro'
+import HowItWorks from '../../components/HowItWorks.astro'
+import ForWhom from '../../components/ForWhom.astro'
+import Pricing from '../../components/Pricing.astro'
+import FAQ from '../../components/FAQ.astro'
+import Footer from '../../components/Footer.astro'
+
+const t = ru
+const lang = 'ru' as const
+---
+
+<Layout lang={lang} title={t.meta.title} description={t.meta.description} t={t}>
+  <Hero lang={lang} t={t} />
+  <HowItWorks lang={lang} t={t} />
+  <ForWhom lang={lang} t={t} />
+  <Pricing lang={lang} t={t} />
+  <FAQ lang={lang} t={t} />
+  <Footer lang={lang} t={t} />
+</Layout>

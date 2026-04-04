@@ -1,0 +1,59 @@
+---
+import NavBar from '../components/NavBar.astro'
+import WhatsAppButton from '../components/WhatsAppButton.astro'
+import { rtlLangs, type Lang, type Translations } from '../i18n'
+import '../styles/global.css'
+
+interface Props {
+  lang: Lang
+  title: string
+  description: string
+  t: Translations
+}
+
+const { lang, title, description, t } = Astro.props
+const isRTL = rtlLangs.includes(lang)
+const siteUrl = 'https://qcrm.sa'
+const canonicalURL = new URL(Astro.url.pathname, siteUrl)
+---
+
+<!doctype html>
+<html lang={lang} dir={isRTL ? 'rtl' : 'ltr'} class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalURL} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {lang === 'ar'
+      ? <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      : <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    }
+    <style is:global>
+      body { -webkit-font-smoothing: antialiased; }
+    </style>
+    <style is:inline set:html={`body { font-family: ${lang === 'ar' ? "'Noto Kufi Arabic'" : "'Inter'"}, sans-serif; }`}></style>
+  </head>
+  <body class="bg-white text-gray-900 overflow-x-hidden">
+    <NavBar {lang} {t} />
+    <main>
+      <slot />
+    </main>
+    <WhatsAppButton {lang} {t} />
+
+    <!-- Scroll reveal script -->
+    <script>
+      const observer = new IntersectionObserver(
+        (entries) => entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible') }),
+        { threshold: 0.12 }
+      )
+      document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+    </script>
+  </body>
+</html>

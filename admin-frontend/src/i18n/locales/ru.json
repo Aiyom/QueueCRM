@@ -1,0 +1,167 @@
+{
+  "nav": {
+    "dashboard": "Дашборд",
+    "tenants": "Клиенты",
+    "plans": "Тарифы",
+    "analytics": "Аналитика",
+    "logout": "Выйти"
+  },
+  "auth": {
+    "title": "Супер Администратор",
+    "email": "Email",
+    "password": "Пароль",
+    "login": "Войти",
+    "error": "Неверный email или пароль"
+  },
+  "dashboard": {
+    "title": "Обзор платформы",
+    "totalTenants": "Всего клиентов",
+    "active": "Активных",
+    "trial": "На триале",
+    "mrr": "MRR",
+    "visits30d": "Визитов (30 дней)",
+    "recentTenants": "Последние клиенты",
+    "topActivity": "Топ по активности"
+  },
+  "tenants": {
+    "title": "Клиенты",
+    "search": "Поиск по названию или slug...",
+    "addTenant": "Добавить клиента",
+    "all": "Все",
+    "trial": "Триал",
+    "active": "Активные",
+    "pastDue": "Просрочены",
+    "cancelled": "Отменены",
+    "cols": {
+      "name": "Название",
+      "slug": "Slug",
+      "plan": "Тариф",
+      "status": "Статус",
+      "customers": "Клиентов",
+      "visits30d": "Визитов 30д",
+      "mrr": "MRR",
+      "trialEnds": "Триал до",
+      "actions": "Действия"
+    },
+    "actions": {
+      "view": "Открыть",
+      "activate": "Активировать",
+      "deactivate": "Деактивировать"
+    },
+    "empty": "Клиенты не найдены",
+    "newTenant": "Новый клиент",
+    "creating": "Создание...",
+    "create": "Создать",
+    "cancel": "Отмена",
+    "businessType": "Тип бизнеса",
+    "types": {
+      "auto_service": "Автосервис",
+      "barbershop": "Барбершоп",
+      "beauty_salon": "Салон красоты"
+    }
+  },
+  "tenantDetail": {
+    "back": "← Назад к клиентам",
+    "basicInfo": "Основная информация",
+    "name": "Название",
+    "slug": "Slug",
+    "phone": "Телефон",
+    "created": "Создан",
+    "status": "Статус",
+    "acceptingQueue": "Принимает очередь",
+    "credentials360": "360dialog (WhatsApp)",
+    "channelId": "ID канала",
+    "apiKey": "API ключ",
+    "subscription": "Подписка",
+    "plan": "Тариф",
+    "subStatus": "Статус",
+    "trialEnds": "Триал до",
+    "periodEnd": "Конец периода",
+    "extendTrial": "Продлить триал",
+    "extendDays": "Дней",
+    "activate": "Активировать",
+    "deactivate": "Деактивировать"
+  },
+  "addTenantModal": {
+    "title": "Добавить клиента",
+    "businessName": "Название бизнеса",
+    "slug": "Slug",
+    "slugHint": "Только строчные буквы, цифры и дефисы",
+    "phone": "Телефон",
+    "adminEmail": "Email администратора",
+    "adminPassword": "Пароль администратора",
+    "plan": "Тариф",
+    "cancel": "Отмена",
+    "create": "Создать",
+    "webhookInstructions": "Укажи в 360dialog Hub webhook URL:",
+    "webhookNext": "Затем добавь d360_api_key и d360_channel_id в карточке клиента.",
+    "apiKey": "API ключ 360dialog",
+    "channelId": "ID канала 360dialog"
+  },
+  "analytics": {
+    "title": "Аналитика платформы",
+    "mrrHistory": "История MRR",
+    "topTenants": "Топ клиентов по выручке",
+    "planDistribution": "Распределение по тарифам",
+    "months": "мес."
+  },
+  "plans": {
+    "starter": "Стартер",
+    "pro": "Про",
+    "business": "Бизнес",
+    "enterprise": "Энтерпрайз"
+  },
+  "statuses": {
+    "trial": "Триал",
+    "active": "Активен",
+    "past_due": "Просрочен",
+    "cancelled": "Отменён",
+    "inactive": "Неактивен"
+  },
+  "plans": {
+    "title": "Тарифы",
+    "addPlan": "Добавить тариф",
+    "editPlan": "Редактировать тариф",
+    "price": "Цена",
+    "features": "Возможности",
+    "onePerLine": "по одной на строку",
+    "featuresPlaceholder": "Неограниченные очереди\nПолный CRM\nПриоритетная поддержка",
+    "sortOrder": "Порядок сортировки",
+    "archived": "В архиве",
+    "archive": "Архивировать",
+    "restore": "Восстановить",
+    "noFeatures": "Возможности не указаны"
+  },
+  "subscription": {
+    "editTitle": "Редактировать подписку",
+    "plan": "Тариф",
+    "status": "Статус",
+    "customPrice": "Кастомная цена (USD/мес)",
+    "customPriceHint": "Оставь пустым чтобы использовать цену из тарифа",
+    "discount": "Скидка %",
+    "discountHint": "0–100. Применяется поверх кастомной цены",
+    "notes": "Внутренние заметки",
+    "save": "Сохранить изменения",
+    "effectivePrice": "Итоговая цена"
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "edit": "Редактировать",
+    "loading": "Загрузка...",
+    "error": "Что-то пошло не так",
+    "yes": "Да",
+    "no": "Нет",
+    "copy": "Копировать",
+    "copied": "Скопировано!",
+    "reveal": "Показать",
+    "hide": "Скрыть",
+    "noData": "Нет данных",
+    "extended": "Продлено на {days} дней",
+    "failed": "Действие не выполнено"
+  },
+  "impersonation": {
+    "banner": "Режим просмотра — Клиент: {name}",
+    "exit": "Выйти"
+  }
+}
