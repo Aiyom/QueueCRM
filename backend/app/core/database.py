@@ -5,8 +5,11 @@ from typing import AsyncGenerator
 from app.core.config import settings
 
 
+# Render provides postgresql://, asyncpg requires postgresql+asyncpg://
+_db_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
+    _db_url,
     echo=False,
     pool_pre_ping=True,
 )
