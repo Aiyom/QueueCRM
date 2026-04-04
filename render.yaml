@@ -21,7 +21,7 @@ services:
       - key: PUBLIC_APP_URL
         value: https://qcrm-dashboard.onrender.com
       - key: ALLOWED_ORIGINS
-        value: https://qcrm-dashboard.onrender.com,https://qcrm-admin.onrender.com,https://qcrm-site.onrender.com
+        value: '["https://qcrm-dashboard.onrender.com","https://qcrm-admin.onrender.com","https://qcrm-site.onrender.com"]'
       - key: D360_API_URL
         value: https://waba.360dialog.io/v1
       - key: D360_PARTNER_TOKEN
