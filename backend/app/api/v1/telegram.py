@@ -4,7 +4,8 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from sqlalchemy import select
 
-from app.core.deps import DBSession, RedisConn, TenantAdmin, get_tenant_id
+from app.core.deps import DBSession, RedisConn, TenantAdmin, get_tenant_id, get_redis_pool
+from app.core.database import AsyncSessionLocal
 from app.models.tenant import Tenant
 from app.services import telegram_bot_service
 from app.services.telegram_service import set_webhook
@@ -15,22 +16,32 @@ logger = structlog.get_logger(__name__)
 router = APIRouter(tags=["telegram"])
 
 
+async def _process_telegram_update(
+    tenant_id: uuid.UUID,
+    chat_id: str,
+    text: str,
+) -> None:
+    """Run in background — creates its own DB session to avoid request-scope issues."""
+    redis = get_redis_pool()
+    async with AsyncSessionLocal() as db:
+        try:
+            tenant = await db.get(Tenant, tenant_id)
+            if not tenant or not tenant.telegram_bot_token or not tenant.is_active:
+                return
+            await telegram_bot_service.handle_message(
+                db, redis, tenant=tenant, chat_id=chat_id, message_text=text
+            )
+        except Exception as exc:
+            logger.error("Telegram background handler error", error=str(exc))
+
+
 @router.post("/telegram/{tenant_id}/webhook")
 async def telegram_webhook(
     tenant_id: uuid.UUID,
     request: Request,
-    db: DBSession,
-    redis: RedisConn,
     background_tasks: BackgroundTasks,
 ):
     """Receive updates from Telegram for a specific tenant's bot."""
-    tenant = await db.get(Tenant, tenant_id)
-    if not tenant or not tenant.telegram_bot_token:
-        raise HTTPException(404, detail="Tenant or bot not found")
-
-    if not tenant.is_active:
-        return {"ok": True}
-
     body = await request.json()
     message = body.get("message") or body.get("edited_message")
     if not message:
@@ -42,14 +53,7 @@ async def telegram_webhook(
     if not chat_id or not text:
         return {"ok": True}
 
-    background_tasks.add_task(
-        telegram_bot_service.handle_message,
-        db,
-        redis,
-        tenant=tenant,
-        chat_id=chat_id,
-        message_text=text,
-    )
+    background_tasks.add_task(_process_telegram_update, tenant_id, chat_id, text)
 
     return {"ok": True}
 

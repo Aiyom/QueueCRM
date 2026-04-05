@@ -41,6 +41,13 @@ def set_redis_pool(pool: Redis) -> None:
     _redis_pool = pool
 
 
+def get_redis_pool() -> Redis:
+    """Return the shared Redis pool (for use outside request scope, e.g. background tasks)."""
+    if _redis_pool is None:
+        raise RuntimeError("Redis pool not initialised")
+    return _redis_pool
+
+
 async def get_redis() -> Redis:
     if _redis_pool is None:
         raise RuntimeError("Redis pool not initialised")
