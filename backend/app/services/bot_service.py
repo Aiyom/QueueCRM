@@ -1,5 +1,6 @@
 """WhatsApp bot state machine."""
 import uuid
+import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
@@ -18,8 +19,8 @@ from app.services import queue_service, whatsapp_service
 logger = structlog.get_logger(__name__)
 
 SESSION_TTL_HOURS = 24
-
 CANCEL_KEYWORDS = {"إلغاء", "cancel", "الغاء", "يلغي", "إلغى", "отмена", "отменить"}
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +87,6 @@ async def _get_or_create_customer(
 
 
 def _detect_language(text: str, enabled: list[str]) -> str:
-    """Detect language from text, constrained to tenant's enabled_languages."""
     enabled = enabled or ["ar", "en"]
     arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
     cyrillic_chars = sum(1 for c in text if "\u0400" <= c <= "\u04ff")
@@ -112,7 +112,6 @@ async def _get_active_services(
 
 
 def _service_names(services: list[Service], lang: str) -> list[str]:
-    """Return service names in the requested language with fallback."""
     if lang == "ar":
         return [s.name_ar for s in services]
     if lang == "ru":
@@ -157,11 +156,25 @@ async def handle_message(
     customer = await _get_or_create_customer(db, tenant.id, phone, lang)
     session = await _get_or_create_session(db, tenant.id, customer.id)
 
-    reply = await _dispatch(db, redis, tenant, customer, session, text, lang)
+    reply, services_for_list = await _dispatch(db, redis, tenant, customer, session, text, lang)
 
     await db.commit()
 
-    if reply and d360_api_key:
+    if not d360_api_key:
+        return
+
+    if services_for_list is not None:
+        # Send interactive list for service selection
+        await whatsapp_service.send_interactive_list(
+            d360_api_key=d360_api_key,
+            to_phone=phone,
+            body_text=reply or whatsapp_service.msg_welcome(
+                _service_names(services_for_list, lang), lang
+            ),
+            services=services_for_list,
+            lang=lang,
+        )
+    elif reply:
         await whatsapp_service.send_message(
             d360_api_key=d360_api_key,
             to_phone=phone,
@@ -177,35 +190,42 @@ async def _dispatch(
     session: WhatsAppSession,
     text: str,
     lang: str,
-) -> Optional[str]:
+) -> tuple[Optional[str], Optional[list]]:
+    """Returns (reply_text, services_for_interactive_list).
+
+    When services is not None, caller sends an interactive list message.
+    """
     state = session.state
 
     # --- IDLE ---
     if state == SessionState.idle:
         services = await _get_active_services(db, tenant.id)
         if not services:
-            if lang == "ar":
-                return "عذراً، لا توجد خدمات متاحة حالياً."
-            if lang == "ru":
-                return "Нет доступных услуг."
-            return "No services available."
+            msg = ("عذراً، لا توجد خدمات متاحة حالياً." if lang == "ar"
+                   else ("Нет доступных услуг." if lang == "ru" else "No services available."))
+            return (msg, None)
         if not tenant.is_accepting_queue:
-            if lang == "ar":
-                return "عذراً، الطابور مغلق حالياً."
-            if lang == "ru":
-                return "Очередь закрыта."
-            return "Queue is currently closed."
+            msg = ("عذراً، الطابور مغلق حالياً." if lang == "ar"
+                   else ("Очередь закрыта." if lang == "ru" else "Queue is currently closed."))
+            return (msg, None)
 
         session.state = SessionState.selecting_service
         session.context = {"service_ids": [str(s.id) for s in services]}
-        return whatsapp_service.msg_welcome(_service_names(services, lang), lang)
+        welcome = whatsapp_service.msg_welcome(_service_names(services, lang), lang)
+        return (welcome, services)
 
     # --- SELECTING SERVICE ---
     if state == SessionState.selecting_service:
         service_ids = session.context.get("service_ids", [])
         selected_service = None
 
-        if text.isdigit():
+        # Interactive list reply sends service UUID as text
+        if UUID_RE.match(text):
+            try:
+                selected_service = await db.get(Service, uuid.UUID(text))
+            except Exception:
+                pass
+        elif text.isdigit():
             idx = int(text) - 1
             if 0 <= idx < len(service_ids):
                 selected_service = await db.get(Service, uuid.UUID(service_ids[idx]))
@@ -220,11 +240,11 @@ async def _dispatch(
                     break
 
         if not selected_service:
-            return whatsapp_service.msg_invalid_service(lang)
+            return (whatsapp_service.msg_invalid_service(lang), None)
 
         existing = await _get_active_queue_entry(db, tenant.id, customer.id)
         if existing:
-            return whatsapp_service.msg_already_in_queue(lang)
+            return (whatsapp_service.msg_already_in_queue(lang), None)
 
         entry = await queue_service.add_to_queue(
             db, redis,
@@ -238,7 +258,7 @@ async def _dispatch(
 
         session.state = SessionState.in_queue
         session.context = {"entry_id": str(entry.id)}
-        return whatsapp_service.msg_queued(position or 1, eta, lang)
+        return (whatsapp_service.msg_queued(position or 1, eta, lang), None)
 
     # --- IN QUEUE ---
     if state == SessionState.in_queue:
@@ -253,7 +273,7 @@ async def _dispatch(
                     pass
             session.state = SessionState.idle
             session.context = {}
-            return whatsapp_service.msg_cancelled(lang)
+            return (whatsapp_service.msg_cancelled(lang), None)
 
         entry_id_str = session.context.get("entry_id")
         if entry_id_str:
@@ -261,30 +281,28 @@ async def _dispatch(
                 redis, tenant.id, uuid.UUID(entry_id_str)
             )
             if position:
-                return whatsapp_service.msg_info(position, position * 20, lang)
+                return (whatsapp_service.msg_info(position, position * 20, lang), None)
 
-        if lang == "ar":
-            return "أنت في الطابور. اكتب 'إلغاء' للخروج."
-        if lang == "ru":
-            return "Вы в очереди. Напишите 'отмена' для отмены."
-        return "You are in the queue. Type 'cancel' to leave."
+        msg = ("أنت في الطابور. اكتب 'إلغاء' للخروج." if lang == "ar"
+               else ("Вы в очереди. Напишите 'отмена' для отмены." if lang == "ru"
+                     else "You are in the queue. Type 'cancel' to leave."))
+        return (msg, None)
 
     # --- BEING SERVED ---
     if state == SessionState.being_served:
-        if lang == "ar":
-            return "أنت يتم خدمتك حالياً."
-        if lang == "ru":
-            return "Вас обслуживают."
-        return "You are currently being served."
+        msg = ("أنت يتم خدمتك حالياً." if lang == "ar"
+               else ("Вас обслуживают." if lang == "ru" else "You are currently being served."))
+        return (msg, None)
 
     # --- DONE ---
     if state == SessionState.done:
         session.state = SessionState.idle
         session.context = {}
         services = await _get_active_services(db, tenant.id)
-        return whatsapp_service.msg_welcome(_service_names(services, lang), lang)
+        welcome = whatsapp_service.msg_welcome(_service_names(services, lang), lang)
+        return (welcome, services)
 
-    return None
+    return (None, None)
 
 
 # ---------------------------------------------------------------------------

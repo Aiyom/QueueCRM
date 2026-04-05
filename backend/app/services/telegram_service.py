@@ -28,6 +28,35 @@ async def send_message(*, bot_token: str, chat_id: str, text: str) -> bool:
         return False
 
 
+async def send_with_keyboard(
+    *, bot_token: str, chat_id: str, text: str, keyboard: list[list[dict]]
+) -> bool:
+    """Send message with inline keyboard buttons."""
+    url = f"{TELEGRAM_API}/bot{bot_token}/sendMessage"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(url, json={
+                "chat_id": chat_id,
+                "text": text,
+                "reply_markup": {"inline_keyboard": keyboard},
+            })
+            resp.raise_for_status()
+            return True
+    except Exception as exc:
+        logger.error("Telegram send_with_keyboard error", error=str(exc))
+        return False
+
+
+async def answer_callback_query(*, bot_token: str, callback_query_id: str) -> None:
+    """Dismiss the loading spinner on an inline button press."""
+    url = f"{TELEGRAM_API}/bot{bot_token}/answerCallbackQuery"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            await client.post(url, json={"callback_query_id": callback_query_id})
+    except Exception:
+        pass
+
+
 async def set_webhook(*, bot_token: str, webhook_url: str) -> bool:
     """Register webhook URL with Telegram. Call once after bot token is saved."""
     url = f"{TELEGRAM_API}/bot{bot_token}/setWebhook"

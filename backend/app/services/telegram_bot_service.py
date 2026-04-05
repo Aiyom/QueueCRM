@@ -22,6 +22,7 @@ logger = structlog.get_logger(__name__)
 SESSION_TTL_HOURS = 24
 CANCEL_KEYWORDS = {"إلغاء", "cancel", "الغاء", "يلغي", "إلغى", "отмена", "отменить"}
 PHONE_RE = re.compile(r"^\+?\d{9,15}$")
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 
 # ---------------------------------------------------------------------------
@@ -30,7 +31,6 @@ PHONE_RE = re.compile(r"^\+?\d{9,15}$")
 
 
 def _detect_language(text: str, enabled: list[str]) -> str:
-    """Detect language from text, constrained to tenant's enabled_languages."""
     enabled = enabled or ["ar", "en"]
     arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
     cyrillic_chars = sum(1 for c in text if "\u0400" <= c <= "\u04ff")
@@ -93,7 +93,6 @@ async def _get_customer_by_chat_id(
 async def _link_or_create_customer(
     db: AsyncSession, tenant_id: uuid.UUID, phone: str, chat_id: str, lang: str
 ) -> Customer:
-    """Find customer by phone, create if new, link telegram_chat_id."""
     result = await db.execute(
         select(Customer).where(
             and_(Customer.tenant_id == tenant_id, Customer.phone == phone)
@@ -140,6 +139,26 @@ async def _get_active_queue_entry(
     return result.scalar_one_or_none()
 
 
+def _service_names(services: list[Service], lang: str) -> list[str]:
+    if lang == "ar":
+        return [s.name_ar for s in services]
+    if lang == "ru":
+        return [s.name_ru or s.name_en or s.name_ar for s in services]
+    return [s.name_en or s.name_ar for s in services]
+
+
+def _services_keyboard(services: list[Service], lang: str) -> list[list[dict]]:
+    """Build inline keyboard — one button per service row."""
+    names = _service_names(services, lang)
+    return [[{"text": name, "callback_data": str(svc.id)}]
+            for svc, name in zip(services, names)]
+
+
+def _cancel_keyboard(lang: str) -> list[list[dict]]:
+    label = "إلغاء ❌" if lang == "ar" else ("Отмена ❌" if lang == "ru" else "Cancel ❌")
+    return [[{"text": label, "callback_data": "cancel"}]]
+
+
 # ---------------------------------------------------------------------------
 # Main handler
 # ---------------------------------------------------------------------------
@@ -153,7 +172,7 @@ async def handle_message(
     chat_id: str,
     message_text: str,
 ) -> None:
-    """Process incoming Telegram message and send reply."""
+    """Process incoming Telegram message or callback and send reply."""
     if not tenant.telegram_bot_token:
         return
 
@@ -164,18 +183,36 @@ async def handle_message(
     session = await _get_or_create_session(db, tenant.id, chat_id)
     customer = await _get_customer_by_chat_id(db, tenant.id, chat_id)
 
-    reply = await _dispatch(db, redis, tenant, customer, session, chat_id, text, lang, enabled)
+    reply_text, reply_services, reply_keyboard = await _dispatch(
+        db, redis, tenant, customer, session, chat_id, text, lang, enabled
+    )
 
     await db.commit()
 
-    if reply:
-        await telegram_service.send_message(
-            bot_token=tenant.telegram_bot_token,
+    token = tenant.telegram_bot_token
+
+    if reply_services is not None:
+        # Show service selection with inline keyboard
+        keyboard = _services_keyboard(reply_services, lang)
+        await telegram_service.send_with_keyboard(
+            bot_token=token,
             chat_id=chat_id,
-            text=reply,
+            text=reply_text or telegram_service.msg_welcome(
+                _service_names(reply_services, lang), lang
+            ),
+            keyboard=keyboard,
+        )
+    elif reply_text and reply_keyboard is not None:
+        await telegram_service.send_with_keyboard(
+            bot_token=token, chat_id=chat_id, text=reply_text, keyboard=reply_keyboard
+        )
+    elif reply_text:
+        await telegram_service.send_message(
+            bot_token=token, chat_id=chat_id, text=reply_text
         )
 
 
+# Return type: (text | None, services_for_keyboard | None, extra_keyboard | None)
 async def _dispatch(
     db: AsyncSession,
     redis: Redis,
@@ -186,59 +223,67 @@ async def _dispatch(
     text: str,
     lang: str,
     enabled: list[str],
-) -> Optional[str]:
+) -> tuple[Optional[str], Optional[list[Service]], Optional[list[list[dict]]]]:
     state = session.state
 
     # --- WAITING FOR PHONE (new Telegram user) ---
     if state == SessionState.idle and customer is None:
-        # Check if text looks like a phone number
         cleaned = text.replace(" ", "").replace("-", "")
         if not cleaned.startswith("+"):
             cleaned = "+" + cleaned
         if PHONE_RE.match(cleaned):
             customer = await _link_or_create_customer(db, tenant.id, cleaned, chat_id, lang)
             session.context = {}
-            # Now show services
             services = await _get_active_services(db, tenant.id)
             if not services:
                 return (
-                    "عذراً، لا توجد خدمات متاحة حالياً."
-                    if lang == "ar"
-                    else ("Нет доступных услуг." if lang == "ru" else "No services available.")
+                    "عذراً، لا توجد خدمات متاحة حالياً." if lang == "ar"
+                    else ("Нет доступных услуг." if lang == "ru" else "No services available."),
+                    None, None
                 )
             session.state = SessionState.selecting_service
             session.context = {"service_ids": [str(s.id) for s in services]}
-            names = _service_names(services, lang)
-            return telegram_service.msg_phone_saved(lang) + "\n\n" + telegram_service.msg_welcome(names, lang)
+            header = telegram_service.msg_phone_saved(lang)
+            welcome = telegram_service.msg_welcome(_service_names(services, lang), lang)
+            # Send phone-saved text first, then service keyboard
+            await telegram_service.send_message(
+                bot_token=tenant.telegram_bot_token, chat_id=chat_id, text=header
+            )
+            return (welcome, services, None)
         else:
-            return telegram_service.msg_ask_phone(lang)
+            return (telegram_service.msg_ask_phone(lang), None, None)
 
     # --- IDLE (known customer) ---
     if state == SessionState.idle:
         services = await _get_active_services(db, tenant.id)
         if not services:
             return (
-                "عذراً، لا توجد خدمات متاحة."
-                if lang == "ar"
-                else ("Нет доступных услуг." if lang == "ru" else "No services available.")
+                "عذراً، لا توجد خدمات متاحة." if lang == "ar"
+                else ("Нет доступных услуг." if lang == "ru" else "No services available."),
+                None, None
             )
         if not tenant.is_accepting_queue:
             return (
-                "عذراً، الطابور مغلق حالياً."
-                if lang == "ar"
-                else ("Очередь закрыта." if lang == "ru" else "Queue is closed.")
+                "عذراً، الطابور مغلق حالياً." if lang == "ar"
+                else ("Очередь закрыта." if lang == "ru" else "Queue is closed."),
+                None, None
             )
         session.state = SessionState.selecting_service
         session.context = {"service_ids": [str(s.id) for s in services]}
-        names = _service_names(services, lang)
-        return telegram_service.msg_welcome(names, lang)
+        return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
 
     # --- SELECTING SERVICE ---
     if state == SessionState.selecting_service:
         service_ids = session.context.get("service_ids", [])
         selected_service = None
 
-        if text.isdigit():
+        # Inline keyboard sends UUID as callback_data
+        if UUID_RE.match(text):
+            try:
+                selected_service = await db.get(Service, uuid.UUID(text))
+            except Exception:
+                pass
+        elif text.isdigit():
             idx = int(text) - 1
             if 0 <= idx < len(service_ids):
                 selected_service = await db.get(Service, uuid.UUID(service_ids[idx]))
@@ -250,15 +295,15 @@ async def _dispatch(
                     break
 
         if not selected_service:
-            return telegram_service.msg_invalid_service(lang)
+            return (telegram_service.msg_invalid_service(lang), None, None)
 
         if customer is None:
             session.state = SessionState.idle
-            return telegram_service.msg_ask_phone(lang)
+            return (telegram_service.msg_ask_phone(lang), None, None)
 
         existing = await _get_active_queue_entry(db, tenant.id, customer.id)
         if existing:
-            return telegram_service.msg_already_in_queue(lang)
+            return (telegram_service.msg_already_in_queue(lang), None, None)
 
         entry = await queue_service.add_to_queue(
             db, redis,
@@ -271,11 +316,12 @@ async def _dispatch(
 
         session.state = SessionState.in_queue
         session.context = {"entry_id": str(entry.id)}
-        return telegram_service.msg_queued(position or 1, eta, lang)
+        queued_text = telegram_service.msg_queued(position or 1, eta, lang)
+        return (queued_text, None, _cancel_keyboard(lang))
 
     # --- IN QUEUE ---
     if state == SessionState.in_queue:
-        if text.lower() in CANCEL_KEYWORDS:
+        if text.lower() in CANCEL_KEYWORDS or text == "cancel":
             entry_id_str = session.context.get("entry_id")
             if entry_id_str:
                 try:
@@ -286,7 +332,7 @@ async def _dispatch(
                     pass
             session.state = SessionState.idle
             session.context = {}
-            return telegram_service.msg_cancelled(lang)
+            return (telegram_service.msg_cancelled(lang), None, None)
 
         entry_id_str = session.context.get("entry_id")
         if entry_id_str:
@@ -294,21 +340,26 @@ async def _dispatch(
                 redis, tenant.id, uuid.UUID(entry_id_str)
             )
             if position:
-                return telegram_service.msg_info(position, position * 20, lang)
+                return (
+                    telegram_service.msg_info(position, position * 20, lang),
+                    None,
+                    _cancel_keyboard(lang),
+                )
 
         return (
-            "أنت في الطابور. اكتب 'إلغاء' للخروج."
-            if lang == "ar"
-            else ("Вы в очереди. Напишите 'отмена' для отмены." if lang == "ru"
-                  else "You are in the queue. Type 'cancel' to leave.")
+            "أنت في الطابور. اضغط إلغاء للخروج." if lang == "ar"
+            else ("Вы в очереди. Нажмите Отмена." if lang == "ru"
+                  else "You are in the queue. Press Cancel to leave."),
+            None,
+            _cancel_keyboard(lang),
         )
 
     # --- BEING SERVED ---
     if state == SessionState.being_served:
         return (
-            "أنت يتم خدمتك حالياً."
-            if lang == "ar"
-            else ("Вас обслуживают." if lang == "ru" else "You are currently being served.")
+            "أنت يتم خدمتك حالياً." if lang == "ar"
+            else ("Вас обслуживают." if lang == "ru" else "You are currently being served."),
+            None, None
         )
 
     # --- DONE ---
@@ -316,18 +367,9 @@ async def _dispatch(
         session.state = SessionState.idle
         session.context = {}
         services = await _get_active_services(db, tenant.id)
-        names = _service_names(services, lang)
-        return telegram_service.msg_welcome(names, lang)
+        return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
 
-    return None
-
-
-def _service_names(services: list[Service], lang: str) -> list[str]:
-    if lang == "ar":
-        return [s.name_ar for s in services]
-    if lang == "ru":
-        return [s.name_en or s.name_ar for s in services]
-    return [s.name_en or s.name_ar for s in services]
+    return (None, None, None)
 
 
 # ---------------------------------------------------------------------------

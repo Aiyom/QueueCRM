@@ -50,6 +50,81 @@ async def send_message(
         return False
 
 
+async def send_interactive_list(
+    *,
+    d360_api_key: str,
+    to_phone: str,
+    body_text: str,
+    services: list,  # list of Service objects
+    lang: str = "ar",
+) -> bool:
+    """Send a WhatsApp interactive list message for service selection."""
+    url = f"{settings.D360_API_URL}/messages"
+
+    button_label = {
+        "ar": "اختر خدمة",
+        "ru": "Выбрать",
+        "en": "Select",
+    }.get(lang, "Select")
+
+    section_title = {
+        "ar": "الخدمات",
+        "ru": "Услуги",
+        "en": "Services",
+    }.get(lang, "Services")
+
+    rows = []
+    for svc in services:
+        if lang == "ar":
+            title = svc.name_ar
+        elif lang == "ru":
+            title = svc.name_ru or svc.name_en or svc.name_ar
+        else:
+            title = svc.name_en or svc.name_ar
+        # WhatsApp title max 24 chars
+        title = title[:24]
+        desc = f"~{svc.avg_duration_minutes} min"
+        rows.append({"id": str(svc.id), "title": title, "description": desc})
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to_phone,
+        "type": "interactive",
+        "interactive": {
+            "type": "list",
+            "body": {"text": body_text},
+            "action": {
+                "button": button_label,
+                "sections": [{"title": section_title, "rows": rows}],
+            },
+        },
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(
+                url,
+                json=payload,
+                headers={
+                    "D360-API-KEY": d360_api_key,
+                    "Content-Type": "application/json",
+                },
+            )
+            resp.raise_for_status()
+            logger.info("WhatsApp interactive list sent", to=to_phone)
+            return True
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "WhatsApp interactive list failed",
+            status=exc.response.status_code,
+            body=exc.response.text[:200],
+        )
+        return False
+    except Exception as exc:
+        logger.error("WhatsApp interactive list error", error=str(exc))
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Message templates — AR / EN / RU
 # ---------------------------------------------------------------------------

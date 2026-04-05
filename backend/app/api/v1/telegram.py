@@ -20,6 +20,7 @@ async def _process_telegram_update(
     tenant_id: uuid.UUID,
     chat_id: str,
     text: str,
+    callback_query_id: str | None = None,
 ) -> None:
     """Run in background — creates its own DB session to avoid request-scope issues."""
     redis = get_redis_pool()
@@ -28,6 +29,13 @@ async def _process_telegram_update(
             tenant = await db.get(Tenant, tenant_id)
             if not tenant or not tenant.telegram_bot_token or not tenant.is_active:
                 return
+            # Acknowledge the button press immediately (removes spinner)
+            if callback_query_id:
+                from app.services.telegram_service import answer_callback_query
+                await answer_callback_query(
+                    bot_token=tenant.telegram_bot_token,
+                    callback_query_id=callback_query_id,
+                )
             await telegram_bot_service.handle_message(
                 db, redis, tenant=tenant, chat_id=chat_id, message_text=text
             )
@@ -43,6 +51,20 @@ async def telegram_webhook(
 ):
     """Receive updates from Telegram for a specific tenant's bot."""
     body = await request.json()
+
+    # Inline keyboard button press
+    if "callback_query" in body:
+        cq = body["callback_query"]
+        chat_id = str(cq.get("message", {}).get("chat", {}).get("id", ""))
+        text = (cq.get("data") or "").strip()
+        callback_query_id = cq.get("id", "")
+        if chat_id and text:
+            background_tasks.add_task(
+                _process_telegram_update, tenant_id, chat_id, text, callback_query_id
+            )
+        return {"ok": True}
+
+    # Regular text message
     message = body.get("message") or body.get("edited_message")
     if not message:
         return {"ok": True}

@@ -49,11 +49,22 @@ async def whatsapp_webhook(
     messages = body.get("messages", [])
     for msg in messages:
         msg_type = msg.get("type")
-        if msg_type != "text":
-            continue
-
         phone = msg.get("from", "")
-        text = msg.get("text", {}).get("body", "").strip()
+        text = ""
+
+        if msg_type == "text":
+            text = msg.get("text", {}).get("body", "").strip()
+        elif msg_type == "interactive":
+            interactive = msg.get("interactive", {})
+            itype = interactive.get("type")
+            if itype == "list_reply":
+                # User selected from interactive list — id is the service UUID
+                text = interactive.get("list_reply", {}).get("id", "").strip()
+            elif itype == "button_reply":
+                # User pressed a quick-reply button — id is the action (e.g. "cancel")
+                text = interactive.get("button_reply", {}).get("id", "").strip()
+        else:
+            continue
 
         if not phone or not text:
             continue
