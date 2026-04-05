@@ -122,10 +122,10 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr v-if="!appointments.length">
+          <tr v-if="!appointments?.length">
             <td colspan="5" class="py-8 text-center text-gray-400">No appointments</td>
           </tr>
-          <tr v-for="appt in appointments" :key="appt.id" class="hover:bg-gray-50">
+          <tr v-for="appt in appointments ?? []" :key="appt.id" class="hover:bg-gray-50">
             <td class="px-4 py-3 font-mono text-gray-700">
               {{ formatDateTime(appt.scheduled_at) }}
             </td>
@@ -225,9 +225,9 @@ const queryClient = useQueryClient()
 // --- View state ---
 const activeView = ref<'day' | 'week' | 'list'>('day')
 const views = [
-  { key: 'day', label: 'Day' },
-  { key: 'week', label: 'Week' },
-  { key: 'list', label: 'List' },
+  { key: 'day' as const, label: 'Day' },
+  { key: 'week' as const, label: 'Week' },
+  { key: 'list' as const, label: 'List' },
 ]
 
 const today = new Date().toISOString().split('T')[0]
