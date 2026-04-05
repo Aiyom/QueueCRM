@@ -1,8 +1,9 @@
-"""Telegram bot state machine — mirrors bot_service.py logic for WhatsApp."""
+"""Telegram bot state machine with live queue + appointment booking."""
 import uuid
 import re
 from datetime import datetime, timezone, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import structlog
 from sqlalchemy import select, and_
@@ -15,7 +16,8 @@ from app.models.service import Service
 from app.models.tenant import Tenant
 from app.models.telegram_session import TelegramSession
 from app.models.whatsapp_session import SessionState
-from app.services import queue_service, telegram_service
+from app.models.appointment import Appointment, AppointmentStatus
+from app.services import queue_service, telegram_service, appointment_service
 
 logger = structlog.get_logger(__name__)
 
@@ -23,48 +25,27 @@ SESSION_TTL_HOURS = 24
 CANCEL_KEYWORDS = {"إلغاء", "cancel", "الغاء", "يلغي", "إلغى", "отмена", "отменить"}
 PHONE_RE = re.compile(r"^\+?\d{9,15}$")
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+KSA_TZ = ZoneInfo("Asia/Riyadh")
+
+_LANG_LABELS = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "ru": "🇷🇺 Русский"}
 
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Session / customer helpers
 # ---------------------------------------------------------------------------
 
-
-def _detect_language(text: str, enabled: list[str]) -> str:
-    enabled = enabled or ["ar", "en"]
-    arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
-    cyrillic_chars = sum(1 for c in text if "\u0400" <= c <= "\u04ff")
-
-    if arabic_chars > len(text) * 0.2 and "ar" in enabled:
-        return "ar"
-    if cyrillic_chars > len(text) * 0.2 and "ru" in enabled:
-        return "ru"
-    if "en" in enabled:
-        return "en"
-    return enabled[0]
-
-
-async def _get_or_create_session(
-    db: AsyncSession,
-    tenant_id: uuid.UUID,
-    chat_id: str,
-) -> TelegramSession:
+async def _get_or_create_session(db, tenant_id, chat_id) -> TelegramSession:
     result = await db.execute(
         select(TelegramSession).where(
-            and_(
-                TelegramSession.tenant_id == tenant_id,
-                TelegramSession.telegram_chat_id == chat_id,
-            )
+            and_(TelegramSession.tenant_id == tenant_id,
+                 TelegramSession.telegram_chat_id == chat_id)
         )
     )
     session = result.scalar_one_or_none()
     if not session:
         session = TelegramSession(
-            id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            telegram_chat_id=chat_id,
-            state=SessionState.idle,
-            context={},
+            id=uuid.uuid4(), tenant_id=tenant_id, telegram_chat_id=chat_id,
+            state=SessionState.idle, context={},
             expires_at=datetime.now(timezone.utc) + timedelta(hours=SESSION_TTL_HOURS),
         )
         db.add(session)
@@ -76,36 +57,24 @@ async def _get_or_create_session(
     return session
 
 
-async def _get_customer_by_chat_id(
-    db: AsyncSession, tenant_id: uuid.UUID, chat_id: str
-) -> Optional[Customer]:
+async def _get_customer_by_chat_id(db, tenant_id, chat_id) -> Optional[Customer]:
     result = await db.execute(
         select(Customer).where(
-            and_(
-                Customer.tenant_id == tenant_id,
-                Customer.telegram_chat_id == chat_id,
-            )
+            and_(Customer.tenant_id == tenant_id, Customer.telegram_chat_id == chat_id)
         )
     )
     return result.scalar_one_or_none()
 
 
-async def _link_or_create_customer(
-    db: AsyncSession, tenant_id: uuid.UUID, phone: str, chat_id: str, lang: str
-) -> Customer:
+async def _link_or_create_customer(db, tenant_id, phone, chat_id, lang) -> Customer:
     result = await db.execute(
-        select(Customer).where(
-            and_(Customer.tenant_id == tenant_id, Customer.phone == phone)
-        )
+        select(Customer).where(and_(Customer.tenant_id == tenant_id, Customer.phone == phone))
     )
     customer = result.scalar_one_or_none()
     if not customer:
         customer = Customer(
-            id=uuid.uuid4(),
-            tenant_id=tenant_id,
-            phone=phone,
-            preferred_language=lang,
-            telegram_chat_id=chat_id,
+            id=uuid.uuid4(), tenant_id=tenant_id, phone=phone,
+            preferred_language=lang, telegram_chat_id=chat_id,
         )
         db.add(customer)
         await db.flush()
@@ -115,7 +84,7 @@ async def _link_or_create_customer(
     return customer
 
 
-async def _get_active_services(db: AsyncSession, tenant_id: uuid.UUID) -> list[Service]:
+async def _get_active_services(db, tenant_id) -> list[Service]:
     result = await db.execute(
         select(Service)
         .where(and_(Service.tenant_id == tenant_id, Service.is_active == True))  # noqa: E712
@@ -124,22 +93,18 @@ async def _get_active_services(db: AsyncSession, tenant_id: uuid.UUID) -> list[S
     return list(result.scalars().all())
 
 
-async def _get_active_queue_entry(
-    db: AsyncSession, tenant_id: uuid.UUID, customer_id: uuid.UUID
-) -> Optional[QueueEntry]:
+async def _get_active_queue_entry(db, tenant_id, customer_id) -> Optional[QueueEntry]:
     result = await db.execute(
         select(QueueEntry).where(
-            and_(
-                QueueEntry.tenant_id == tenant_id,
-                QueueEntry.customer_id == customer_id,
-                QueueEntry.status.in_([QueueStatus.waiting, QueueStatus.called]),
-            )
+            and_(QueueEntry.tenant_id == tenant_id,
+                 QueueEntry.customer_id == customer_id,
+                 QueueEntry.status.in_([QueueStatus.waiting, QueueStatus.called]))
         )
     )
     return result.scalar_one_or_none()
 
 
-def _service_names(services: list[Service], lang: str) -> list[str]:
+def _service_names(services, lang) -> list[str]:
     if lang == "ar":
         return [s.name_ar for s in services]
     if lang == "ru":
@@ -147,109 +112,124 @@ def _service_names(services: list[Service], lang: str) -> list[str]:
     return [s.name_en or s.name_ar for s in services]
 
 
-def _services_keyboard(services: list[Service], lang: str) -> list[list[dict]]:
-    """Build inline keyboard — one button per service row."""
+def _services_keyboard(services, lang) -> list[list[dict]]:
     names = _service_names(services, lang)
     return [[{"text": name, "callback_data": str(svc.id)}]
             for svc, name in zip(services, names)]
 
 
-def _cancel_keyboard(lang: str) -> list[list[dict]]:
+def _cancel_keyboard(lang) -> list[list[dict]]:
     label = "إلغاء ❌" if lang == "ar" else ("Отмена ❌" if lang == "ru" else "Cancel ❌")
     return [[{"text": label, "callback_data": "cancel"}]]
 
 
-_LANG_LABELS = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "ru": "🇷🇺 Русский"}
+def _lang_keyboard(enabled) -> list[list[dict]]:
+    return [[{"text": _LANG_LABELS[l], "callback_data": f"lang:{l}"}]
+            for l in enabled if l in _LANG_LABELS]
 
 
-def _lang_keyboard(enabled: list[str]) -> list[list[dict]]:
-    """Language selection buttons — one per row, only enabled languages."""
-    return [
-        [{"text": _LANG_LABELS[l], "callback_data": f"lang:{l}"}]
-        for l in enabled if l in _LANG_LABELS
-    ]
+def _dates_keyboard(dates: list, lang: str) -> list[list[dict]]:
+    """Keyboard with working day buttons."""
+    buttons = []
+    for d in dates:
+        dt = datetime.strptime(d, "%Y-%m-%d") if isinstance(d, str) else d
+        label = dt.strftime("%-d %b")  # e.g. "10 Apr"
+        buttons.append([{"text": label, "callback_data": f"date:{d}"}])
+    back_label = "⬅️ رجوع" if lang == "ar" else ("⬅️ Назад" if lang == "ru" else "⬅️ Back")
+    buttons.append([{"text": back_label, "callback_data": "menu:back"}])
+    return buttons
+
+
+def _slots_keyboard(slots, lang: str) -> list[list[dict]]:
+    """Keyboard with time slot buttons (2 per row)."""
+    buttons = []
+    row = []
+    for slot in slots:
+        dt = datetime.fromisoformat(slot.start) if hasattr(slot, "start") else datetime.fromisoformat(slot["start"])
+        local = dt.astimezone(KSA_TZ)
+        label = local.strftime("%H:%M")
+        row.append({"text": label, "callback_data": f"slot:{slot.start if hasattr(slot, 'start') else slot['start']}"})
+        if len(row) == 2:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+    back_label = "⬅️ رجوع" if lang == "ar" else ("⬅️ Назад" if lang == "ru" else "⬅️ Back")
+    buttons.append([{"text": back_label, "callback_data": "book:back_date"}])
+    return buttons
+
+
+def _my_appointments_keyboard(appointments: list, lang: str) -> list[list[dict]]:
+    """Show list of upcoming appointments with cancel buttons."""
+    buttons = []
+    for appt in appointments:
+        dt = datetime.fromisoformat(appt.scheduled_at.isoformat()).astimezone(KSA_TZ)
+        label = dt.strftime("%-d %b %H:%M")
+        buttons.append([{"text": f"❌ {label}", "callback_data": f"cancel_appt:{appt.id}"}])
+    back_label = "⬅️ رجوع" if lang == "ar" else ("⬅️ Назад" if lang == "ru" else "⬅️ Back")
+    buttons.append([{"text": back_label, "callback_data": "menu:back"}])
+    return buttons
 
 
 # ---------------------------------------------------------------------------
-# Main handler
+# Main entry point
 # ---------------------------------------------------------------------------
-
 
 async def handle_message(
-    db: AsyncSession,
-    redis: Redis,
-    *,
-    tenant: Tenant,
-    chat_id: str,
-    message_text: str,
+    db: AsyncSession, redis: Redis, *, tenant: Tenant, chat_id: str, message_text: str
 ) -> None:
-    """Process incoming Telegram message or callback and send reply."""
     if not tenant.telegram_bot_token:
         return
 
     enabled = tenant.enabled_languages or ["ar", "en"]
     text = message_text.strip()
-
     session = await _get_or_create_session(db, tenant.id, chat_id)
 
-    # /start resets session and triggers language picker
     if text == "/start":
         session.state = SessionState.idle
         session.context = {}
 
-    # Language stored in session takes priority over auto-detect
     saved_lang = session.context.get("language")
-    if saved_lang and saved_lang in enabled:
-        lang = saved_lang
-    else:
-        lang = _detect_language(text, enabled)
+    lang = saved_lang if (saved_lang and saved_lang in enabled) else _detect_language(text, enabled)
 
     customer = await _get_customer_by_chat_id(db, tenant.id, chat_id)
 
-    reply_text, reply_services, reply_keyboard = await _dispatch(
+    reply_text, reply_keyboard = await _dispatch(
         db, redis, tenant, customer, session, chat_id, text, lang, enabled
     )
 
     await db.commit()
 
     token = tenant.telegram_bot_token
-
-    if reply_services is not None:
-        # Show service selection with inline keyboard
-        keyboard = _services_keyboard(reply_services, lang)
-        await telegram_service.send_with_keyboard(
-            bot_token=token,
-            chat_id=chat_id,
-            text=reply_text or telegram_service.msg_welcome(
-                _service_names(reply_services, lang), lang
-            ),
-            keyboard=keyboard,
-        )
-    elif reply_text and reply_keyboard is not None:
+    if reply_text and reply_keyboard is not None:
         await telegram_service.send_with_keyboard(
             bot_token=token, chat_id=chat_id, text=reply_text, keyboard=reply_keyboard
         )
     elif reply_text:
-        await telegram_service.send_message(
-            bot_token=token, chat_id=chat_id, text=reply_text
-        )
+        await telegram_service.send_message(bot_token=token, chat_id=chat_id, text=reply_text)
 
 
-# Return type: (text | None, services_for_keyboard | None, extra_keyboard | None)
+def _detect_language(text: str, enabled: list[str]) -> str:
+    enabled = enabled or ["ar", "en"]
+    arabic = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
+    cyrillic = sum(1 for c in text if "\u0400" <= c <= "\u04ff")
+    if arabic > len(text) * 0.2 and "ar" in enabled:
+        return "ar"
+    if cyrillic > len(text) * 0.2 and "ru" in enabled:
+        return "ru"
+    return "en" if "en" in enabled else enabled[0]
+
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+
 async def _dispatch(
-    db: AsyncSession,
-    redis: Redis,
-    tenant: Tenant,
-    customer: Optional[Customer],
-    session: TelegramSession,
-    chat_id: str,
-    text: str,
-    lang: str,
-    enabled: list[str],
-) -> tuple[Optional[str], Optional[list[Service]], Optional[list[list[dict]]]]:
+    db, redis, tenant, customer, session, chat_id, text, lang, enabled
+) -> tuple[Optional[str], Optional[list]]:
     state = session.state
 
-    # --- LANGUAGE SELECTION callback (lang:ar / lang:en / lang:ru) ---
+    # --- LANGUAGE SELECTION ---
     if text.startswith("lang:"):
         chosen = text.split(":")[1]
         if chosen in enabled:
@@ -257,219 +237,351 @@ async def _dispatch(
             session.context = {**session.context, "language": lang}
             if customer:
                 customer.preferred_language = lang
-        # After language chosen → proceed to phone ask or services
         if customer is None:
-            return (telegram_service.msg_ask_phone(lang), None, None)
-        services = await _get_active_services(db, tenant.id)
-        if not services or not tenant.is_accepting_queue:
-            msg = ("عذراً، الطابور مغلق حالياً." if lang == "ar"
-                   else ("Очередь закрыта." if lang == "ru" else "Queue is closed."))
-            return (msg, None, None)
-        session.state = SessionState.selecting_service
-        session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
-        return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
+            return (telegram_service.msg_ask_phone(lang), None)
+        return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
 
-    # --- SHOW LANGUAGE PICKER if language not yet selected ---
+    # --- LANGUAGE PICKER if not yet selected ---
     if state == SessionState.idle and "language" not in session.context:
         if len(enabled) == 1:
-            # Only one language — skip picker, save it automatically
             session.context = {"language": enabled[0]}
             lang = enabled[0]
         else:
-            return (
-                telegram_service.msg_select_language(),
-                None,
-                _lang_keyboard(enabled),
-            )
+            return (telegram_service.msg_select_language(), _lang_keyboard(enabled))
 
-    # --- WAITING FOR PHONE (new Telegram user) ---
+    # --- PHONE (new user) ---
     if state == SessionState.idle and customer is None:
         cleaned = text.replace(" ", "").replace("-", "")
         if not cleaned.startswith("+"):
             cleaned = "+" + cleaned
         if PHONE_RE.match(cleaned):
             customer = await _link_or_create_customer(db, tenant.id, cleaned, chat_id, lang)
-            session.context = {}
+            session.context = {**session.context}
+            await telegram_service.send_message(
+                bot_token=tenant.telegram_bot_token, chat_id=chat_id,
+                text=telegram_service.msg_phone_saved(lang)
+            )
+            return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
+        return (telegram_service.msg_ask_phone(lang), None)
+
+    # --- MAIN MENU callbacks ---
+    if text == "menu:queue" or (state == SessionState.idle and text not in ("menu:book", "menu:my_appointments", "menu:back")):
+        # Show live queue flow
+        if text == "menu:queue" or state == SessionState.idle:
             services = await _get_active_services(db, tenant.id)
             if not services:
-                return (
-                    "عذراً، لا توجد خدمات متاحة حالياً." if lang == "ar"
-                    else ("Нет доступных услуг." if lang == "ru" else "No services available."),
-                    None, None
-                )
+                return (_no_services(lang), None)
+            if not tenant.is_accepting_queue:
+                return (_queue_closed(lang), None)
             session.state = SessionState.selecting_service
             session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
-            header = telegram_service.msg_phone_saved(lang)
-            welcome = telegram_service.msg_welcome(_service_names(services, lang), lang)
-            # Send phone-saved text first, then service keyboard
-            await telegram_service.send_message(
-                bot_token=tenant.telegram_bot_token, chat_id=chat_id, text=header
-            )
-            return (welcome, services, None)
-        else:
-            return (telegram_service.msg_ask_phone(lang), None, None)
-
-    # --- IDLE (known customer) ---
-    if state == SessionState.idle:
-        services = await _get_active_services(db, tenant.id)
-        if not services:
             return (
-                "عذراً، لا توجد خدمات متاحة." if lang == "ar"
-                else ("Нет доступных услуг." if lang == "ru" else "No services available."),
-                None, None
+                telegram_service.msg_welcome(_service_names(services, lang), lang),
+                _services_keyboard(services, lang)
             )
-        if not tenant.is_accepting_queue:
-            return (
-                "عذراً، الطابور مغلق حالياً." if lang == "ar"
-                else ("Очередь закрыта." if lang == "ru" else "Queue is closed."),
-                None, None
-            )
-        session.state = SessionState.selecting_service
-        session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
-        return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
 
-    # --- SELECTING SERVICE ---
+    if text == "menu:back":
+        session.state = SessionState.idle
+        session.context = {k: v for k, v in session.context.items() if k in ("language",)}
+        return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
+
+    if text == "menu:book":
+        return await _start_booking(db, tenant, session, lang)
+
+    if text == "menu:my_appointments":
+        return await _show_my_appointments(db, tenant, customer, session, lang)
+
+    # --- BOOKING FLOW ---
+    if state == SessionState.booking_date:
+        if text.startswith("date:"):
+            chosen_date = text.split(":", 1)[1]
+            session.context = {**session.context, "booking_date": chosen_date}
+            # Go to service selection
+            services = await _get_active_services(db, tenant.id)
+            if not services:
+                return (_no_services(lang), None)
+            session.state = SessionState.booking_service
+            session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
+            return (telegram_service.msg_pick_service(lang), _services_keyboard(services, lang))
+        if text == "menu:back":
+            session.state = SessionState.idle
+            return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
+
+    if state == SessionState.booking_service:
+        if UUID_RE.match(text):
+            service = await db.get(Service, uuid.UUID(text))
+            if service:
+                session.context = {**session.context, "booking_service_id": str(service.id)}
+                session.state = SessionState.booking_time
+                return await _show_slots(db, tenant, session, lang)
+        if text == "menu:back":
+            return await _start_booking(db, tenant, session, lang)
+
+    if state == SessionState.booking_time:
+        if text.startswith("slot:"):
+            slot_start = text.split(":", 1)[1]
+            return await _confirm_booking(db, redis, tenant, customer, session, chat_id, slot_start, lang)
+        if text == "book:back_date":
+            return await _start_booking(db, tenant, session, lang)
+
+    # --- MY APPOINTMENTS ---
+    if state == SessionState.my_appointments:
+        if text.startswith("cancel_appt:"):
+            appt_id = uuid.UUID(text.split(":", 1)[1])
+            return await _cancel_appointment(db, tenant, customer, session, appt_id, lang)
+        if text == "menu:back":
+            session.state = SessionState.idle
+            return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
+
+    # --- LIVE QUEUE STATES ---
     if state == SessionState.selecting_service:
         service_ids = session.context.get("service_ids", [])
         selected_service = None
-
-        # Inline keyboard sends UUID as callback_data
         if UUID_RE.match(text):
-            try:
-                selected_service = await db.get(Service, uuid.UUID(text))
-            except Exception:
-                pass
+            selected_service = await db.get(Service, uuid.UUID(text))
         elif text.isdigit():
             idx = int(text) - 1
             if 0 <= idx < len(service_ids):
                 selected_service = await db.get(Service, uuid.UUID(service_ids[idx]))
-        else:
-            services = await _get_active_services(db, tenant.id)
-            for svc in services:
-                if text.lower() in svc.name_ar.lower() or text.lower() in (svc.name_en or "").lower():
-                    selected_service = svc
-                    break
 
         if not selected_service:
-            return (telegram_service.msg_invalid_service(lang), None, None)
-
+            return (telegram_service.msg_invalid_service(lang), None)
         if customer is None:
             session.state = SessionState.idle
-            return (telegram_service.msg_ask_phone(lang), None, None)
+            return (telegram_service.msg_ask_phone(lang), None)
 
         existing = await _get_active_queue_entry(db, tenant.id, customer.id)
         if existing:
-            return (telegram_service.msg_already_in_queue(lang), None, None)
+            return (telegram_service.msg_already_in_queue(lang), None)
 
         entry = await queue_service.add_to_queue(
-            db, redis,
-            tenant_id=tenant.id,
-            customer_id=customer.id,
-            service_id=selected_service.id,
+            db, redis, tenant_id=tenant.id,
+            customer_id=customer.id, service_id=selected_service.id,
         )
         position = await queue_service.get_queue_position(redis, tenant.id, entry.id)
         eta = (position or 1) * selected_service.avg_duration_minutes
-
         session.state = SessionState.in_queue
         session.context = {**session.context, "entry_id": str(entry.id)}
-        queued_text = telegram_service.msg_queued(position or 1, eta, lang)
-        return (queued_text, None, _cancel_keyboard(lang))
+        return (telegram_service.msg_queued(position or 1, eta, lang), _cancel_keyboard(lang))
 
-    # --- IN QUEUE ---
     if state == SessionState.in_queue:
         if text.lower() in CANCEL_KEYWORDS or text == "cancel":
             entry_id_str = session.context.get("entry_id")
             if entry_id_str:
                 try:
-                    await queue_service.cancel_entry(
-                        db, redis, tenant.id, uuid.UUID(entry_id_str)
-                    )
+                    await queue_service.cancel_entry(db, redis, tenant.id, uuid.UUID(entry_id_str))
                 except ValueError:
                     pass
             session.state = SessionState.idle
-            session.context = {}
-            return (telegram_service.msg_cancelled(lang), None, None)
+            session.context = {k: v for k, v in session.context.items() if k in ("language",)}
+            return (telegram_service.msg_cancelled(lang), telegram_service.main_menu_keyboard(lang))
 
         entry_id_str = session.context.get("entry_id")
         if entry_id_str:
-            position = await queue_service.get_queue_position(
-                redis, tenant.id, uuid.UUID(entry_id_str)
-            )
+            position = await queue_service.get_queue_position(redis, tenant.id, uuid.UUID(entry_id_str))
             if position:
-                return (
-                    telegram_service.msg_info(position, position * 20, lang),
-                    None,
-                    _cancel_keyboard(lang),
-                )
+                return (telegram_service.msg_info(position, position * 20, lang), _cancel_keyboard(lang))
+        return (_queue_in_queue_text(lang), _cancel_keyboard(lang))
 
-        return (
-            "أنت في الطابور. اضغط إلغاء للخروج." if lang == "ar"
-            else ("Вы в очереди. Нажмите Отмена." if lang == "ru"
-                  else "You are in the queue. Press Cancel to leave."),
-            None,
-            _cancel_keyboard(lang),
-        )
-
-    # --- BEING SERVED ---
     if state == SessionState.being_served:
-        return (
-            "أنت يتم خدمتك حالياً." if lang == "ar"
-            else ("Вас обслуживают." if lang == "ru" else "You are currently being served."),
-            None, None
-        )
+        return (_being_served(lang), None)
 
-    # --- DONE ---
     if state == SessionState.done:
         session.state = SessionState.idle
-        session.context = {}
-        services = await _get_active_services(db, tenant.id)
-        return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
+        session.context = {k: v for k, v in session.context.items() if k in ("language",)}
+        return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
 
-    return (None, None, None)
+    # Fallback — show main menu
+    return (telegram_service.msg_main_menu(lang), telegram_service.main_menu_keyboard(lang))
 
 
 # ---------------------------------------------------------------------------
-# Notification senders
+# Booking helpers
 # ---------------------------------------------------------------------------
 
+async def _start_booking(db, tenant, session, lang) -> tuple:
+    """Show working day picker."""
+    from datetime import date
+    days = await appointment_service.get_working_days(db, tenant.id, date.today(), count=7)
+    if not days:
+        return (telegram_service.msg_no_working_days(lang), None)
+    session.state = SessionState.booking_date
+    session.context = {**session.context}
+    return (telegram_service.msg_pick_date(lang), _dates_keyboard(days, lang))
 
-async def send_upcoming_notification(
-    db: AsyncSession,
-    entry: QueueEntry,
-    tenant: Tenant,
-) -> None:
+
+async def _show_slots(db, tenant, session, lang) -> tuple:
+    """Show available time slots for chosen date + service."""
+    from datetime import date
+    date_str = session.context.get("booking_date")
+    service_id_str = session.context.get("booking_service_id")
+    if not date_str:
+        return await _start_booking(db, tenant, session, lang)
+
+    target_date = date.fromisoformat(date_str)
+    service_id = uuid.UUID(service_id_str) if service_id_str else None
+    slots = await appointment_service.get_available_slots(db, tenant.id, target_date, service_id)
+    if not slots:
+        # No slots — go back to date picker
+        days = await appointment_service.get_working_days(db, tenant.id, date.today(), count=7)
+        session.state = SessionState.booking_date
+        return (telegram_service.msg_no_slots(lang), _dates_keyboard(days, lang))
+
+    return (telegram_service.msg_pick_time(lang), _slots_keyboard(slots, lang))
+
+
+async def _confirm_booking(db, redis, tenant, customer, session, chat_id, slot_start_iso, lang) -> tuple:
+    """Create appointment and send confirmation."""
+    if customer is None:
+        session.state = SessionState.idle
+        return (telegram_service.msg_ask_phone(lang), None)
+
+    service_id_str = session.context.get("booking_service_id")
+    service_id = uuid.UUID(service_id_str) if service_id_str else None
+
+    try:
+        scheduled_at = datetime.fromisoformat(slot_start_iso)
+        appt = await appointment_service.create_appointment(
+            db, tenant_id=tenant.id, customer_id=customer.id,
+            scheduled_at=scheduled_at, service_id=service_id,
+        )
+        await db.commit()
+
+        # Notify manager via bot if they have Telegram — skip for now, just log
+        logger.info("Appointment booked via bot", appointment_id=str(appt.id))
+
+        local = scheduled_at.astimezone(KSA_TZ)
+        date_str = local.strftime("%-d %B %Y")
+        time_str = local.strftime("%H:%M")
+
+        service_name = ""
+        if service_id:
+            svc = await db.get(Service, service_id)
+            if svc:
+                service_name = svc.name_ar if lang == "ar" else (
+                    (svc.name_ru or svc.name_en or svc.name_ar) if lang == "ru"
+                    else (svc.name_en or svc.name_ar)
+                )
+
+        session.state = SessionState.idle
+        session.context = {k: v for k, v in session.context.items() if k in ("language",)}
+
+        conf_text = telegram_service.msg_booking_confirmed(date_str, time_str, service_name, lang)
+        return (conf_text, telegram_service.main_menu_keyboard(lang))
+
+    except ValueError as e:
+        # Slot taken — show updated slots
+        logger.warning("Booking failed", error=str(e))
+        return await _show_slots(db, tenant, session, lang)
+
+
+async def _show_my_appointments(db, tenant, customer, session, lang) -> tuple:
+    """Show upcoming confirmed appointments with cancel buttons."""
+    if customer is None:
+        session.state = SessionState.idle
+        return (telegram_service.msg_ask_phone(lang), None)
+
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(Appointment).where(
+            and_(
+                Appointment.tenant_id == tenant.id,
+                Appointment.customer_id == customer.id,
+                Appointment.status == AppointmentStatus.confirmed,
+                Appointment.scheduled_at >= now,
+            )
+        ).order_by(Appointment.scheduled_at)
+    )
+    appointments = list(result.scalars().all())
+
+    session.state = SessionState.my_appointments
+
+    if not appointments:
+        return (telegram_service.msg_my_appointments_empty(lang), telegram_service.main_menu_keyboard(lang))
+
+    # Build text list + keyboard
+    lines = []
+    for appt in appointments:
+        local = appt.scheduled_at.astimezone(KSA_TZ)
+        lines.append(f"📅 {local.strftime('%-d %b %H:%M')}")
+    text = "\n".join(lines)
+    cancel_hint = {
+        "ar": "\n\nاضغط على الموعد لإلغائه:",
+        "ru": "\n\nНажмите на запись для отмены:",
+        "en": "\n\nTap an appointment to cancel:",
+    }.get(lang, "")
+    return (text + cancel_hint, _my_appointments_keyboard(appointments, lang))
+
+
+async def _cancel_appointment(db, tenant, customer, session, appt_id, lang) -> tuple:
+    """Cancel appointment if > 2h before."""
+    now = datetime.now(timezone.utc)
+    appt = await db.get(Appointment, appt_id)
+
+    if not appt or appt.tenant_id != tenant.id or (customer and appt.customer_id != customer.id):
+        return (telegram_service.msg_my_appointments_empty(lang), telegram_service.main_menu_keyboard(lang))
+
+    if (appt.scheduled_at - now).total_seconds() < 7200:
+        return (telegram_service.msg_cancel_too_late(lang), None)
+
+    await appointment_service.cancel_appointment(db, tenant.id, appt_id)
+    await db.commit()
+
+    session.state = SessionState.idle
+    session.context = {k: v for k, v in session.context.items() if k in ("language",)}
+    return (telegram_service.msg_appointment_cancelled(lang), telegram_service.main_menu_keyboard(lang))
+
+
+# ---------------------------------------------------------------------------
+# Text helpers
+# ---------------------------------------------------------------------------
+
+def _no_services(lang):
+    return ("عذراً، لا توجد خدمات متاحة." if lang == "ar"
+            else ("Нет доступных услуг." if lang == "ru" else "No services available."))
+
+def _queue_closed(lang):
+    return ("عذراً، الطابور مغلق حالياً." if lang == "ar"
+            else ("Очередь закрыта." if lang == "ru" else "Queue is closed."))
+
+def _queue_in_queue_text(lang):
+    return ("أنت في الطابور. اضغط إلغاء للخروج." if lang == "ar"
+            else ("Вы в очереди. Нажмите Отмена." if lang == "ru"
+                  else "You are in the queue. Press Cancel to leave."))
+
+def _being_served(lang):
+    return ("أنت يتم خدمتك حالياً." if lang == "ar"
+            else ("Вас обслуживают." if lang == "ru" else "You are currently being served."))
+
+
+# ---------------------------------------------------------------------------
+# Notification senders (called from queue_service)
+# ---------------------------------------------------------------------------
+
+async def send_upcoming_notification(db, entry, tenant) -> None:
     customer = await db.get(Customer, entry.customer_id)
     if not customer or not customer.telegram_chat_id or not tenant.telegram_bot_token:
         return
     lang = customer.preferred_language
     await telegram_service.send_message(
-        bot_token=tenant.telegram_bot_token,
-        chat_id=customer.telegram_chat_id,
+        bot_token=tenant.telegram_bot_token, chat_id=customer.telegram_chat_id,
         text=telegram_service.msg_upcoming(lang),
     )
 
 
-async def send_called_notification(
-    db: AsyncSession,
-    entry: QueueEntry,
-    tenant: Tenant,
-) -> None:
+async def send_called_notification(db, entry, tenant) -> None:
     customer = await db.get(Customer, entry.customer_id)
     if not customer or not customer.telegram_chat_id or not tenant.telegram_bot_token:
         return
     lang = customer.preferred_language
     await telegram_service.send_message(
-        bot_token=tenant.telegram_bot_token,
-        chat_id=customer.telegram_chat_id,
+        bot_token=tenant.telegram_bot_token, chat_id=customer.telegram_chat_id,
         text=telegram_service.msg_called(lang),
     )
-
     result = await db.execute(
         select(TelegramSession).where(
-            and_(
-                TelegramSession.tenant_id == tenant.id,
-                TelegramSession.telegram_chat_id == customer.telegram_chat_id,
-            )
+            and_(TelegramSession.tenant_id == tenant.id,
+                 TelegramSession.telegram_chat_id == customer.telegram_chat_id)
         )
     )
     session = result.scalar_one_or_none()

@@ -14,6 +14,11 @@ class SessionState(str, enum.Enum):
     in_queue = "in_queue"
     being_served = "being_served"
     done = "done"
+    # Appointment booking flow
+    booking_date = "booking_date"
+    booking_service = "booking_service"
+    booking_time = "booking_time"
+    my_appointments = "my_appointments"
 
 
 class WhatsAppSession(Base):

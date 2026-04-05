@@ -82,6 +82,109 @@ def msg_select_language() -> str:
     return "🌐 Choose language / اختر اللغة / Выберите язык"
 
 
+# ---------------------------------------------------------------------------
+# Main menu (after language/phone)
+# ---------------------------------------------------------------------------
+
+def msg_main_menu(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "مرحباً! 👋 ماذا تريد؟"
+    if lang == "ru":
+        return "Привет! 👋 Что вы хотите сделать?"
+    return "Hello! 👋 What would you like to do?"
+
+
+def main_menu_keyboard(lang: str = "ar") -> list[list[dict]]:
+    labels = {
+        "ar": ("🔴 الطابور الحالي", "📅 حجز موعد مسبق", "📋 مواعيدي"),
+        "ru": ("🔴 Живая очередь", "📅 Записаться", "📋 Мои записи"),
+        "en": ("🔴 Live Queue", "📅 Book Appointment", "📋 My Appointments"),
+    }
+    live, book, my = labels.get(lang, labels["en"])
+    return [
+        [{"text": live, "callback_data": "menu:queue"}],
+        [{"text": book, "callback_data": "menu:book"}],
+        [{"text": my,   "callback_data": "menu:my_appointments"}],
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Booking flow messages
+# ---------------------------------------------------------------------------
+
+def msg_pick_date(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "📅 اختر التاريخ:"
+    if lang == "ru":
+        return "📅 Выберите дату:"
+    return "📅 Choose a date:"
+
+
+def msg_pick_service(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "🔧 اختر الخدمة:"
+    if lang == "ru":
+        return "🔧 Выберите услугу:"
+    return "🔧 Choose a service:"
+
+
+def msg_pick_time(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "⏰ اختر الوقت المتاح:"
+    if lang == "ru":
+        return "⏰ Выберите доступное время:"
+    return "⏰ Choose an available time slot:"
+
+
+def msg_no_slots(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "😔 لا توجد أوقات متاحة في هذا اليوم. اختر يوماً آخر:"
+    if lang == "ru":
+        return "😔 Нет свободных слотов в этот день. Выберите другую дату:"
+    return "😔 No available slots for this day. Please choose another date:"
+
+
+def msg_no_working_days(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "😔 لا توجد أيام عمل متاحة قريباً. يرجى المحاولة لاحقاً."
+    if lang == "ru":
+        return "😔 Нет доступных рабочих дней. Попробуйте позже."
+    return "😔 No working days available soon. Please try again later."
+
+
+def msg_booking_confirmed(date_str: str, time_str: str, service_name: str, lang: str = "ar") -> str:
+    svc = f" — {service_name}" if service_name else ""
+    if lang == "ar":
+        return f"✅ تم تأكيد موعدك!\n📅 {date_str} الساعة {time_str}{svc}\nسنذكرك قبل ساعة."
+    if lang == "ru":
+        return f"✅ Запись подтверждена!\n📅 {date_str} в {time_str}{svc}\nНапомним за час."
+    return f"✅ Appointment confirmed!\n📅 {date_str} at {time_str}{svc}\nWe'll remind you 1 hour before."
+
+
+def msg_my_appointments_empty(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "📋 ليس لديك مواعيد قادمة."
+    if lang == "ru":
+        return "📋 У вас нет предстоящих записей."
+    return "📋 You have no upcoming appointments."
+
+
+def msg_appointment_cancelled(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "✅ تم إلغاء الموعد."
+    if lang == "ru":
+        return "✅ Запись отменена."
+    return "✅ Appointment cancelled."
+
+
+def msg_cancel_too_late(lang: str = "ar") -> str:
+    if lang == "ar":
+        return "⚠️ لا يمكن الإلغاء قبل أقل من ساعتين من الموعد."
+    if lang == "ru":
+        return "⚠️ Отмена невозможна менее чем за 2 часа до визита."
+    return "⚠️ Cannot cancel less than 2 hours before the appointment."
+
+
 def msg_welcome(service_names: list[str], lang: str = "ar") -> str:
     services = "\n".join(f"{i+1}. {name}" for i, name in enumerate(service_names))
     if lang == "ar":
