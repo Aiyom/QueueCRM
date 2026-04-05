@@ -81,14 +81,26 @@
           />
           <p class="text-xs text-gray-400 mt-1">Leave empty to disable Telegram.</p>
         </div>
-        <button
-          @click="saveTelegram"
-          :disabled="savingTelegram"
-          class="btn-primary text-sm"
-        >
-          {{ savingTelegram ? 'Saving...' : 'Save Telegram Token' }}
-        </button>
-        <span v-if="telegramSaved" class="ml-3 text-sm text-green-600">Saved!</span>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button
+            @click="saveTelegram"
+            :disabled="savingTelegram"
+            class="btn-primary text-sm"
+          >
+            {{ savingTelegram ? 'Saving...' : 'Save Token' }}
+          </button>
+          <button
+            v-if="telegramToken"
+            @click="registerWebhook"
+            :disabled="registeringWebhook"
+            class="btn-secondary text-sm"
+          >
+            {{ registeringWebhook ? 'Registering...' : 'Register Webhook' }}
+          </button>
+          <span v-if="telegramSaved" class="text-sm text-green-600">Saved!</span>
+          <span v-if="webhookRegistered" class="text-sm text-green-600">Webhook registered!</span>
+          <span v-if="webhookError" class="text-sm text-red-500">{{ webhookError }}</span>
+        </div>
       </div>
     </div>
 
@@ -117,6 +129,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { getSettings, updateSettings } from '@/api/settings'
+import api from '@/api/axios'
 
 const auth = useAuthStore()
 const copied = ref(false)
@@ -130,6 +143,9 @@ const savingLangs = ref(false)
 const langsSaved = ref(false)
 const savingTelegram = ref(false)
 const telegramSaved = ref(false)
+const registeringWebhook = ref(false)
+const webhookRegistered = ref(false)
+const webhookError = ref('')
 
 const availableLanguages = [
   { code: 'ar', label: 'Arabic', native: 'العربية' },
@@ -193,6 +209,21 @@ async function saveTelegram() {
     setTimeout(() => { telegramSaved.value = false }, 3000)
   } finally {
     savingTelegram.value = false
+  }
+}
+
+async function registerWebhook() {
+  registeringWebhook.value = true
+  webhookError.value = ''
+  try {
+    await api.post('/telegram/setup-webhook')
+    webhookRegistered.value = true
+    setTimeout(() => { webhookRegistered.value = false }, 4000)
+  } catch (e: any) {
+    webhookError.value = e?.response?.data?.detail || 'Failed to register webhook'
+    setTimeout(() => { webhookError.value = '' }, 5000)
+  } finally {
+    registeringWebhook.value = false
   }
 }
 </script>

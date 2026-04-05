@@ -31,6 +31,7 @@ class Customer(Base):
     total_visits: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_spent: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     preferred_language: Mapped[str] = mapped_column(String, default="ar", nullable=False)
+    telegram_chat_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
