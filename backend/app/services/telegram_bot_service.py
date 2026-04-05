@@ -159,6 +159,17 @@ def _cancel_keyboard(lang: str) -> list[list[dict]]:
     return [[{"text": label, "callback_data": "cancel"}]]
 
 
+_LANG_LABELS = {"ar": "🇸🇦 العربية", "en": "🇬🇧 English", "ru": "🇷🇺 Русский"}
+
+
+def _lang_keyboard(enabled: list[str]) -> list[list[dict]]:
+    """Language selection buttons — one per row, only enabled languages."""
+    return [
+        [{"text": _LANG_LABELS[l], "callback_data": f"lang:{l}"}]
+        for l in enabled if l in _LANG_LABELS
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Main handler
 # ---------------------------------------------------------------------------
@@ -178,9 +189,21 @@ async def handle_message(
 
     enabled = tenant.enabled_languages or ["ar", "en"]
     text = message_text.strip()
-    lang = _detect_language(text, enabled)
 
     session = await _get_or_create_session(db, tenant.id, chat_id)
+
+    # /start resets session and triggers language picker
+    if text == "/start":
+        session.state = SessionState.idle
+        session.context = {}
+
+    # Language stored in session takes priority over auto-detect
+    saved_lang = session.context.get("language")
+    if saved_lang and saved_lang in enabled:
+        lang = saved_lang
+    else:
+        lang = _detect_language(text, enabled)
+
     customer = await _get_customer_by_chat_id(db, tenant.id, chat_id)
 
     reply_text, reply_services, reply_keyboard = await _dispatch(
@@ -226,6 +249,39 @@ async def _dispatch(
 ) -> tuple[Optional[str], Optional[list[Service]], Optional[list[list[dict]]]]:
     state = session.state
 
+    # --- LANGUAGE SELECTION callback (lang:ar / lang:en / lang:ru) ---
+    if text.startswith("lang:"):
+        chosen = text.split(":")[1]
+        if chosen in enabled:
+            lang = chosen
+            session.context = {**session.context, "language": lang}
+            if customer:
+                customer.preferred_language = lang
+        # After language chosen → proceed to phone ask or services
+        if customer is None:
+            return (telegram_service.msg_ask_phone(lang), None, None)
+        services = await _get_active_services(db, tenant.id)
+        if not services or not tenant.is_accepting_queue:
+            msg = ("عذراً، الطابور مغلق حالياً." if lang == "ar"
+                   else ("Очередь закрыта." if lang == "ru" else "Queue is closed."))
+            return (msg, None, None)
+        session.state = SessionState.selecting_service
+        session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
+        return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
+
+    # --- SHOW LANGUAGE PICKER if language not yet selected ---
+    if state == SessionState.idle and "language" not in session.context:
+        if len(enabled) == 1:
+            # Only one language — skip picker, save it automatically
+            session.context = {"language": enabled[0]}
+            lang = enabled[0]
+        else:
+            return (
+                telegram_service.msg_select_language(),
+                None,
+                _lang_keyboard(enabled),
+            )
+
     # --- WAITING FOR PHONE (new Telegram user) ---
     if state == SessionState.idle and customer is None:
         cleaned = text.replace(" ", "").replace("-", "")
@@ -242,7 +298,7 @@ async def _dispatch(
                     None, None
                 )
             session.state = SessionState.selecting_service
-            session.context = {"service_ids": [str(s.id) for s in services]}
+            session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
             header = telegram_service.msg_phone_saved(lang)
             welcome = telegram_service.msg_welcome(_service_names(services, lang), lang)
             # Send phone-saved text first, then service keyboard
@@ -269,7 +325,7 @@ async def _dispatch(
                 None, None
             )
         session.state = SessionState.selecting_service
-        session.context = {"service_ids": [str(s.id) for s in services]}
+        session.context = {**session.context, "service_ids": [str(s.id) for s in services]}
         return (telegram_service.msg_welcome(_service_names(services, lang), lang), services, None)
 
     # --- SELECTING SERVICE ---
@@ -315,7 +371,7 @@ async def _dispatch(
         eta = (position or 1) * selected_service.avg_duration_minutes
 
         session.state = SessionState.in_queue
-        session.context = {"entry_id": str(entry.id)}
+        session.context = {**session.context, "entry_id": str(entry.id)}
         queued_text = telegram_service.msg_queued(position or 1, eta, lang)
         return (queued_text, None, _cancel_keyboard(lang))
 

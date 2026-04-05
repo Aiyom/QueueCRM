@@ -78,6 +78,10 @@ async def set_webhook(*, bot_token: str, webhook_url: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+def msg_select_language() -> str:
+    return "🌐 Choose language / اختر اللغة / Выберите язык"
+
+
 def msg_welcome(service_names: list[str], lang: str = "ar") -> str:
     services = "\n".join(f"{i+1}. {name}" for i, name in enumerate(service_names))
     if lang == "ar":
