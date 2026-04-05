@@ -118,7 +118,7 @@
       </div>
 
       <!-- WhatsApp config -->
-      <div class="bg-white rounded-xl shadow-sm p-4">
+      <div class="bg-white rounded-xl shadow-sm p-4 mb-4">
         <h2 class="font-semibold text-gray-700 mb-3">{{ $t('tenantDetail.credentials360') }}</h2>
         <div class="space-y-3 text-sm">
           <div>
@@ -128,6 +128,30 @@
           <div>
             <p class="text-xs text-gray-500 mb-1">{{ $t('tenantDetail.channelId') }}</p>
             <p class="font-mono text-xs text-gray-700">{{ data.d360_channel_id ?? '—' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Languages & Telegram -->
+      <div class="bg-white rounded-xl shadow-sm p-4">
+        <h2 class="font-semibold text-gray-700 mb-3">{{ $t('tenantDetail.integrations') }}</h2>
+        <div class="space-y-3 text-sm">
+          <div>
+            <p class="text-xs text-gray-500 mb-1">{{ $t('tenantDetail.enabledLanguages') }}</p>
+            <div class="flex gap-2 flex-wrap">
+              <span
+                v-for="lang in (data.enabled_languages ?? ['ar','en'])"
+                :key="lang"
+                class="px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700"
+              >{{ lang.toUpperCase() }}</span>
+            </div>
+          </div>
+          <div>
+            <p class="text-xs text-gray-500 mb-1">{{ $t('tenantDetail.telegramBot') }}</p>
+            <p class="text-sm">
+              <span v-if="data.telegram_bot_token" class="text-green-700 font-medium">✓ {{ $t('tenantDetail.telegramConfigured') }}</span>
+              <span v-else class="text-gray-400">{{ $t('tenantDetail.telegramNotSet') }}</span>
+            </p>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 export const en = {
   meta: {
-    title: "QueueCRM — WhatsApp Queue Management for Auto Business",
-    description: "Manage queues and customers via WhatsApp. No app needed. For car washes, service centers, salons.",
+    title: "QueueCRM — WhatsApp & Telegram Queue Management",
+    description: "Manage queues and customers via WhatsApp or Telegram. No app needed. For car washes, service centers, salons.",
   },
   nav: {
     howItWorks: "How it works",
@@ -12,7 +12,7 @@ export const en = {
   hero: {
     badge: "Built for Saudi Arabia",
     headline: "Customers don't wait — they arrive on time",
-    subheadline: "WhatsApp queue management. No app. Works on any phone.",
+    subheadline: "Queue management via WhatsApp or Telegram. No app. Works on any phone.",
     cta: "Start 30-day free trial",
     ctaSecondary: "See how it works",
     stat1: "97%",
@@ -32,7 +32,7 @@ export const en = {
   howItWorks: {
     title: "How it works",
     step1title: "Customer sends a message",
-    step1desc: "Texts on WhatsApp or scans QR code at the entrance",
+    step1desc: "Texts on WhatsApp or Telegram, or scans QR code at the entrance",
     step2title: "Bot replies instantly",
     step2desc: "Picks service, sees position in queue and estimated wait",
     step3title: "Automatic notification",
@@ -82,15 +82,19 @@ export const en = {
     items: [
       {
         q: "Does the customer need to install an app?",
-        a: "No. Everything works through WhatsApp they already have.",
+        a: "No. Everything works through WhatsApp or Telegram they already have.",
       },
       {
         q: "How does a customer join the queue?",
-        a: "They scan a QR code at the entrance or message the WhatsApp number directly.",
+        a: "They scan a QR code at the entrance or message the WhatsApp / Telegram bot directly.",
       },
       {
         q: "Does it support Arabic?",
-        a: "Yes, the system auto-detects the language from the customer's message.",
+        a: "Yes. The system supports Arabic, English and Russian. Each business chooses which languages to enable.",
+      },
+      {
+        q: "Can I use Telegram instead of WhatsApp?",
+        a: "Yes. Telegram is available as an optional channel alongside WhatsApp. Configure your bot token in Settings.",
       },
       {
         q: "What if I'm not tech-savvy?",

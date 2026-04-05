@@ -80,7 +80,12 @@
     "extendTrial": "Продлить триал",
     "extendDays": "Дней",
     "activate": "Активировать",
-    "deactivate": "Деактивировать"
+    "deactivate": "Деактивировать",
+    "integrations": "Интеграции",
+    "enabledLanguages": "Языки интерфейса",
+    "telegramBot": "Telegram бот",
+    "telegramConfigured": "Настроен",
+    "telegramNotSet": "Не настроен"
   },
   "addTenantModal": {
     "title": "Добавить клиента",

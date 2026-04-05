@@ -80,7 +80,12 @@
     "extendTrial": "Extend Trial",
     "extendDays": "Days",
     "activate": "Activate",
-    "deactivate": "Deactivate"
+    "deactivate": "Deactivate",
+    "integrations": "Integrations",
+    "enabledLanguages": "Enabled Languages",
+    "telegramBot": "Telegram Bot",
+    "telegramConfigured": "Configured",
+    "telegramNotSet": "Not configured"
   },
   "addTenantModal": {
     "title": "Add New Tenant",

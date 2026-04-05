@@ -21,6 +21,8 @@ export interface Tenant {
   is_accepting_queue: boolean
   d360_api_key: string | null
   d360_channel_id: string | null
+  enabled_languages: string[]
+  telegram_bot_token: string | null
   created_at: string
   subscription?: Subscription
 }
