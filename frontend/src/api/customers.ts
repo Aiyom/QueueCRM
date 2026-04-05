@@ -12,6 +12,7 @@ export interface Customer {
   preferred_language: string
   last_seen_at: string | null
   created_at: string
+  telegram_chat_id: string | null
 }
 
 export interface CustomerList {

@@ -12,18 +12,20 @@
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name (EN)</th>
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name (AR)</th>
+            <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Name (RU)</th>
             <th class="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Duration</th>
             <th class="px-6 py-3"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
           <tr v-if="!services?.length">
-            <td colspan="5" class="py-8 text-center text-gray-400">No services yet</td>
+            <td colspan="6" class="py-8 text-center text-gray-400">No services yet</td>
           </tr>
           <tr v-for="(svc, i) in services" :key="svc.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 text-gray-400 text-sm">{{ i + 1 }}</td>
             <td class="px-6 py-4 font-medium text-gray-900">{{ svc.name_en }}</td>
             <td class="px-6 py-4 text-gray-700">{{ svc.name_ar }}</td>
+            <td class="px-6 py-4 text-gray-500">{{ svc.name_ru || '—' }}</td>
             <td class="px-6 py-4 text-gray-500 text-sm">{{ svc.avg_duration_minutes }} min</td>
             <td class="px-6 py-4 text-right flex items-center gap-2 justify-end">
               <button @click="startEdit(svc)" class="text-sm text-blue-600 hover:text-blue-800">Edit</button>
@@ -46,6 +48,10 @@
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Name (Arabic) *</label>
             <input v-model="form.name_ar" class="input" required dir="rtl" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Name (Russian)</label>
+            <input v-model="form.name_ru" class="input" placeholder="Optional" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Avg Duration (minutes)</label>
@@ -77,28 +83,39 @@ const { data: services } = useQuery({
 
 const showCreate = ref(false)
 const editService = ref<Service | null>(null)
-const form = ref({ name_en: '', name_ar: '', avg_duration_minutes: 30 })
+const form = ref({ name_en: '', name_ar: '', name_ru: '', avg_duration_minutes: 30 })
 
 function startEdit(svc: Service) {
   editService.value = svc
-  form.value = { name_en: svc.name_en, name_ar: svc.name_ar, avg_duration_minutes: svc.avg_duration_minutes }
+  form.value = {
+    name_en: svc.name_en,
+    name_ar: svc.name_ar,
+    name_ru: svc.name_ru || '',
+    avg_duration_minutes: svc.avg_duration_minutes,
+  }
 }
 
 function closeModal() {
   showCreate.value = false
   editService.value = null
-  form.value = { name_en: '', name_ar: '', avg_duration_minutes: 30 }
+  form.value = { name_en: '', name_ar: '', name_ru: '', avg_duration_minutes: 30 }
 }
 
 async function handleCreate() {
-  await servicesApi.create(form.value)
+  await servicesApi.create({
+    ...form.value,
+    name_ru: form.value.name_ru || undefined,
+  })
   queryClient.invalidateQueries({ queryKey: ['services'] })
   closeModal()
 }
 
 async function handleUpdate() {
   if (!editService.value) return
-  await servicesApi.update(editService.value.id, form.value)
+  await servicesApi.update(editService.value.id, {
+    ...form.value,
+    name_ru: form.value.name_ru || undefined,
+  })
   queryClient.invalidateQueries({ queryKey: ['services'] })
   closeModal()
 }

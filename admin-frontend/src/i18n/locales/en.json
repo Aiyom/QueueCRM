@@ -114,16 +114,7 @@
     "starter": "Starter",
     "pro": "Pro",
     "business": "Business",
-    "enterprise": "Enterprise"
-  },
-  "statuses": {
-    "trial": "Trial",
-    "active": "Active",
-    "past_due": "Past Due",
-    "cancelled": "Cancelled",
-    "inactive": "Inactive"
-  },
-  "plans": {
+    "enterprise": "Enterprise",
     "title": "Plans",
     "addPlan": "Add Plan",
     "editPlan": "Edit Plan",
@@ -136,6 +127,13 @@
     "archive": "Archive",
     "restore": "Restore",
     "noFeatures": "No features listed"
+  },
+  "statuses": {
+    "trial": "Trial",
+    "active": "Active",
+    "past_due": "Past Due",
+    "cancelled": "Cancelled",
+    "inactive": "Inactive"
   },
   "subscription": {
     "editTitle": "Edit Subscription",

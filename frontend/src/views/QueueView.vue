@@ -61,7 +61,7 @@
         <select v-model="addForm.service_id" class="input w-48">
           <option value="">No service</option>
           <option v-for="svc in services" :key="svc.id" :value="svc.id">
-            {{ svc.name_en }}
+            {{ svc.name_en || svc.name_ar }}
           </option>
         </select>
         <button type="submit" class="btn-primary whitespace-nowrap" :disabled="addLoading">
@@ -107,7 +107,7 @@
             </div>
             <p class="text-sm text-gray-500">
               {{ entry.customer.phone }}
-              <span v-if="entry.service"> · {{ entry.service.name_en }}</span>
+              <span v-if="entry.service"> · {{ entry.service.name_en || entry.service.name_ar }}</span>
               <span> · ~{{ entry.eta_minutes }}min</span>
             </p>
           </div>

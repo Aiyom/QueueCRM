@@ -29,22 +29,29 @@ async def seed() -> None:
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
-        # --- Check if already seeded ---
-        existing = await db.scalar(select(SuperAdmin).limit(1))
-        if existing:
-            print("✅ Already seeded, skipping.")
+        # --- Super Admin (upsert — safe to run on every deploy) ---
+        existing_admin = await db.scalar(
+            select(SuperAdmin).where(SuperAdmin.email == "admin@queuecrm.sa")
+        )
+        if not existing_admin:
+            super_admin = SuperAdmin(
+                id=uuid.uuid4(),
+                email="admin@queuecrm.sa",
+                hashed_password=hash_password("Admin@1234"),
+                full_name="Super Admin",
+            )
+            db.add(super_admin)
+            await db.commit()
+            print("✓ SuperAdmin created: admin@queuecrm.sa / Admin@1234")
+        else:
+            print("✅ SuperAdmin already exists, skipping.")
+
+        # --- Skip rest if tenants already seeded ---
+        existing_tenant = await db.scalar(select(Tenant).limit(1))
+        if existing_tenant:
+            print("✅ Tenants already seeded, skipping.")
             await engine.dispose()
             return
-
-        # --- Super Admin ---
-        super_admin = SuperAdmin(
-            id=uuid.uuid4(),
-            email="admin@queuecrm.sa",
-            hashed_password=hash_password("Admin@1234"),
-            full_name="Super Admin",
-        )
-        db.add(super_admin)
-        print("✓ SuperAdmin: admin@queuecrm.sa / Admin@1234")
 
         # --- Demo Tenant (Auto Service) ---
         tenant_auto = Tenant(

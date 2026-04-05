@@ -6,7 +6,7 @@
     <div class="card">
       <h2 class="font-semibold text-gray-900 mb-4">Public Queue Page</h2>
       <p class="text-sm text-gray-500 mb-4">
-        Share this link or QR code with customers to join the queue via WhatsApp.
+        Share this link or QR code with customers to join the queue via WhatsApp or Telegram.
       </p>
       <div class="flex items-center gap-4">
         <div class="bg-white border-2 border-gray-200 rounded-lg p-3" v-if="qrDataUrl">

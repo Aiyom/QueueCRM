@@ -114,16 +114,7 @@
     "starter": "Стартер",
     "pro": "Про",
     "business": "Бизнес",
-    "enterprise": "Энтерпрайз"
-  },
-  "statuses": {
-    "trial": "Триал",
-    "active": "Активен",
-    "past_due": "Просрочен",
-    "cancelled": "Отменён",
-    "inactive": "Неактивен"
-  },
-  "plans": {
+    "enterprise": "Энтерпрайз",
     "title": "Тарифы",
     "addPlan": "Добавить тариф",
     "editPlan": "Редактировать тариф",
@@ -136,6 +127,13 @@
     "archive": "Архивировать",
     "restore": "Восстановить",
     "noFeatures": "Возможности не указаны"
+  },
+  "statuses": {
+    "trial": "Триал",
+    "active": "Активен",
+    "past_due": "Просрочен",
+    "cancelled": "Отменён",
+    "inactive": "Неактивен"
   },
   "subscription": {
     "editTitle": "Редактировать подписку",

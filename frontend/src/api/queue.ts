@@ -8,7 +8,7 @@ export interface QueueEntry {
   status: QueueStatus
   eta_minutes: number
   customer: { id: string; phone: string; name: string | null; is_vip: boolean }
-  service: { id: string; name_ar: string; name_en: string } | null
+  service: { id: string; name_ar: string; name_en: string; name_ru: string | null } | null
   created_at: string
 }
 
