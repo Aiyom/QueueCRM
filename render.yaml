@@ -20,7 +20,7 @@ services:
       - key: WEBHOOK_SECRET_PATH
         generateValue: true
       - key: PUBLIC_APP_URL
-        value: https://qcrm-dashboard.onrender.com
+        value: https://qcrm-backend.onrender.com
       - key: ALLOWED_ORIGINS
         value: '["https://qcrm-dashboard.onrender.com","https://qcrm-admin.onrender.com","https://qcrm-site.onrender.com"]'
       - key: D360_API_URL
