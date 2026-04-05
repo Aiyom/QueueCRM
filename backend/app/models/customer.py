@@ -47,3 +47,4 @@ class Customer(Base):
     tenant: Mapped["Tenant"] = relationship(back_populates="customers")  # noqa: F821
     queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="customer")  # noqa: F821
     whatsapp_sessions: Mapped[List["WhatsAppSession"]] = relationship(back_populates="customer")  # noqa: F821
+    appointments: Mapped[List["Appointment"]] = relationship(back_populates="customer")  # noqa: F821

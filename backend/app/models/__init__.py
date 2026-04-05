@@ -8,6 +8,8 @@ from app.models.staff_user import StaffUser
 from app.models.super_admin import SuperAdmin
 from app.models.tenant_subscription import TenantSubscription
 from app.models.plan_config import PlanConfig
+from app.models.work_schedule import WorkSchedule
+from app.models.appointment import Appointment
 
 __all__ = [
     "Tenant",
@@ -20,4 +22,6 @@ __all__ = [
     "SuperAdmin",
     "TenantSubscription",
     "PlanConfig",
+    "WorkSchedule",
+    "Appointment",
 ]

@@ -26,3 +26,4 @@ class Service(Base):
     # Relationships
     tenant: Mapped["Tenant"] = relationship(back_populates="services")  # noqa: F821
     queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="service")  # noqa: F821
+    appointments: Mapped[List["Appointment"]] = relationship(back_populates="service")  # noqa: F821

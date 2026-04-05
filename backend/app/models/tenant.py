@@ -52,3 +52,5 @@ class Tenant(Base):
     whatsapp_sessions: Mapped[List["WhatsAppSession"]] = relationship(back_populates="tenant")  # noqa: F821
     staff_users: Mapped[List["StaffUser"]] = relationship(back_populates="tenant")  # noqa: F821
     subscription: Mapped[Optional["TenantSubscription"]] = relationship(back_populates="tenant")  # noqa: F821
+    work_schedules: Mapped[List["WorkSchedule"]] = relationship(back_populates="tenant")  # noqa: F821
+    appointments: Mapped[List["Appointment"]] = relationship(back_populates="tenant")  # noqa: F821
