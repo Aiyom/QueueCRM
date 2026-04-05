@@ -23,7 +23,8 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     from app.core.config import settings
-    return settings.DATABASE_URL
+    url = settings.DATABASE_URL
+    return url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 
 def run_migrations_offline() -> None:
