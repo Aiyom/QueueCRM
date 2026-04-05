@@ -33,6 +33,10 @@ async def update_settings(
         tenant.enabled_languages = body.enabled_languages
     if body.telegram_bot_token is not None:
         tenant.telegram_bot_token = body.telegram_bot_token or None
+    if body.d360_api_key is not None:
+        tenant.d360_api_key = body.d360_api_key or None
+    if body.d360_channel_id is not None:
+        tenant.d360_channel_id = body.d360_channel_id or None
 
     await db.commit()
     await db.refresh(tenant)

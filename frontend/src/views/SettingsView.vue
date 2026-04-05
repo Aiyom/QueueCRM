@@ -61,6 +61,29 @@
       </div>
     </div>
 
+    <!-- WhatsApp (360dialog) -->
+    <div class="card">
+      <h2 class="font-semibold text-gray-900 mb-1">WhatsApp (360dialog)</h2>
+      <p class="text-sm text-gray-500 mb-4">Enter your 360dialog API key and Channel ID to enable WhatsApp bot.</p>
+      <div v-if="loadingSettings" class="text-sm text-gray-400">Loading...</div>
+      <div v-else class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+          <input v-model="d360ApiKey" type="password" placeholder="d360-api-key..." class="input w-full" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Channel ID</label>
+          <input v-model="d360ChannelId" type="text" placeholder="channel_id..." class="input w-full" />
+        </div>
+        <div class="flex items-center gap-3">
+          <button @click="saveWhatsApp" :disabled="savingWhatsApp" class="btn-primary text-sm">
+            {{ savingWhatsApp ? 'Saving...' : 'Save WhatsApp' }}
+          </button>
+          <span v-if="whatsappSaved" class="text-sm text-green-600">Saved!</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Telegram -->
     <div class="card">
       <h2 class="font-semibold text-gray-900 mb-1">Telegram Bot</h2>
@@ -146,6 +169,10 @@ const telegramSaved = ref(false)
 const registeringWebhook = ref(false)
 const webhookRegistered = ref(false)
 const webhookError = ref('')
+const d360ApiKey = ref('')
+const d360ChannelId = ref('')
+const savingWhatsApp = ref(false)
+const whatsappSaved = ref(false)
 
 const availableLanguages = [
   { code: 'ar', label: 'Arabic', native: 'العربية' },
@@ -167,6 +194,8 @@ async function loadSettings() {
     const s = await getSettings()
     selectedLanguages.value = s.enabled_languages
     telegramToken.value = s.telegram_bot_token ?? ''
+    d360ApiKey.value = s.d360_api_key ?? ''
+    d360ChannelId.value = s.d360_channel_id ?? ''
   } finally {
     loadingSettings.value = false
   }
@@ -209,6 +238,20 @@ async function saveTelegram() {
     setTimeout(() => { telegramSaved.value = false }, 3000)
   } finally {
     savingTelegram.value = false
+  }
+}
+
+async function saveWhatsApp() {
+  savingWhatsApp.value = true
+  try {
+    await updateSettings({
+      d360_api_key: d360ApiKey.value || null,
+      d360_channel_id: d360ChannelId.value || null,
+    })
+    whatsappSaved.value = true
+    setTimeout(() => { whatsappSaved.value = false }, 3000)
+  } finally {
+    savingWhatsApp.value = false
   }
 }
 

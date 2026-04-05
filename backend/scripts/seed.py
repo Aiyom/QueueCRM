@@ -55,6 +55,8 @@ async def seed() -> None:
             phone="+966501234567",
             d360_api_key=None,
             d360_channel_id=None,
+            enabled_languages=["ar", "en"],
+            telegram_bot_token=None,
         )
         db.add(tenant_auto)
 
@@ -116,6 +118,8 @@ async def seed() -> None:
             slug="khalid-barber",
             business_type=BusinessType.barbershop,
             phone="+966507654321",
+            enabled_languages=["ar", "en"],
+            telegram_bot_token=None,
         )
         db.add(tenant_barber)
 

@@ -42,6 +42,8 @@ class TenantOut(BaseModel):
     is_accepting_queue: bool
     d360_api_key: Optional[str] = None
     d360_channel_id: Optional[str] = None
+    enabled_languages: List[str] = ["ar", "en"]
+    telegram_bot_token: Optional[str] = None
     created_at: str
     subscription: Optional[SubscriptionOut] = None
 
@@ -138,6 +140,8 @@ def _tenant_to_out(tenant: Tenant) -> TenantOut:
         is_accepting_queue=tenant.is_accepting_queue,
         d360_api_key=tenant.d360_api_key,
         d360_channel_id=tenant.d360_channel_id,
+        enabled_languages=tenant.enabled_languages or ["ar", "en"],
+        telegram_bot_token=tenant.telegram_bot_token,
         created_at=tenant.created_at.isoformat(),
         subscription=sub,
     )

@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 
 SESSION_TTL_HOURS = 24
 
-CANCEL_KEYWORDS = {"إلغاء", "cancel", "الغاء", "يلغي", "إلغى"}
+CANCEL_KEYWORDS = {"إلغاء", "cancel", "الغاء", "يلغي", "إلغى", "отмена", "отменить"}
 
 
 # ---------------------------------------------------------------------------
@@ -52,7 +52,6 @@ async def _get_or_create_session(
         )
         db.add(session)
     else:
-        # Reset if expired
         if session.expires_at < datetime.now(timezone.utc):
             session.state = SessionState.idle
             session.context = {}
@@ -86,10 +85,19 @@ async def _get_or_create_customer(
     return customer
 
 
-def _detect_language(text: str) -> str:
-    """Detect AR or EN based on presence of Arabic Unicode range."""
+def _detect_language(text: str, enabled: list[str]) -> str:
+    """Detect language from text, constrained to tenant's enabled_languages."""
+    enabled = enabled or ["ar", "en"]
     arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
-    return "ar" if arabic_chars > len(text) * 0.2 else "en"
+    cyrillic_chars = sum(1 for c in text if "\u0400" <= c <= "\u04ff")
+
+    if arabic_chars > len(text) * 0.2 and "ar" in enabled:
+        return "ar"
+    if cyrillic_chars > len(text) * 0.2 and "ru" in enabled:
+        return "ru"
+    if "en" in enabled:
+        return "en"
+    return enabled[0]
 
 
 async def _get_active_services(
@@ -101,6 +109,15 @@ async def _get_active_services(
         .order_by(Service.sort_order)
     )
     return list(result.scalars().all())
+
+
+def _service_names(services: list[Service], lang: str) -> list[str]:
+    """Return service names in the requested language with fallback."""
+    if lang == "ar":
+        return [s.name_ar for s in services]
+    if lang == "ru":
+        return [s.name_ru or s.name_en or s.name_ar for s in services]
+    return [s.name_en or s.name_ar for s in services]
 
 
 async def _get_active_queue_entry(
@@ -133,10 +150,10 @@ async def handle_message(
 ) -> None:
     """Process incoming WhatsApp message and send reply."""
     text = message_text.strip()
-    lang = _detect_language(text)
+    enabled = tenant.enabled_languages or ["ar", "en"]
+    lang = _detect_language(text, enabled)
     d360_api_key = tenant.d360_api_key or ""
 
-    # Get/create customer
     customer = await _get_or_create_customer(db, tenant.id, phone, lang)
     session = await _get_or_create_session(db, tenant.id, customer.id)
 
@@ -167,43 +184,48 @@ async def _dispatch(
     if state == SessionState.idle:
         services = await _get_active_services(db, tenant.id)
         if not services:
-            return "عذراً، لا توجد خدمات متاحة حالياً." if lang == "ar" else "No services available."
+            if lang == "ar":
+                return "عذراً، لا توجد خدمات متاحة حالياً."
+            if lang == "ru":
+                return "Нет доступных услуг."
+            return "No services available."
         if not tenant.is_accepting_queue:
-            return "عذراً، الطابور مغلق حالياً." if lang == "ar" else "Queue is currently closed."
+            if lang == "ar":
+                return "عذراً، الطابور مغلق حالياً."
+            if lang == "ru":
+                return "Очередь закрыта."
+            return "Queue is currently closed."
 
         session.state = SessionState.selecting_service
         session.context = {"service_ids": [str(s.id) for s in services]}
-
-        names = [s.name_ar if lang == "ar" else s.name_en for s in services]
-        return whatsapp_service.msg_welcome(names, lang)
+        return whatsapp_service.msg_welcome(_service_names(services, lang), lang)
 
     # --- SELECTING SERVICE ---
     if state == SessionState.selecting_service:
         service_ids = session.context.get("service_ids", [])
-
-        # Try numeric selection
         selected_service = None
+
         if text.isdigit():
             idx = int(text) - 1
             if 0 <= idx < len(service_ids):
                 selected_service = await db.get(Service, uuid.UUID(service_ids[idx]))
         else:
-            # Try name match
             services = await _get_active_services(db, tenant.id)
+            tl = text.lower()
             for svc in services:
-                if text.lower() in svc.name_ar.lower() or text.lower() in svc.name_en.lower():
+                if (tl in svc.name_ar.lower()
+                        or tl in (svc.name_en or "").lower()
+                        or tl in (svc.name_ru or "").lower()):
                     selected_service = svc
                     break
 
         if not selected_service:
             return whatsapp_service.msg_invalid_service(lang)
 
-        # Check for duplicate
         existing = await _get_active_queue_entry(db, tenant.id, customer.id)
         if existing:
             return whatsapp_service.msg_already_in_queue(lang)
 
-        # Add to queue
         entry = await queue_service.add_to_queue(
             db, redis,
             tenant_id=tenant.id,
@@ -212,12 +234,10 @@ async def _dispatch(
         )
 
         position = await queue_service.get_queue_position(redis, tenant.id, entry.id)
-        avg_min = selected_service.avg_duration_minutes
-        eta = (position or 1) * avg_min
+        eta = (position or 1) * selected_service.avg_duration_minutes
 
         session.state = SessionState.in_queue
         session.context = {"entry_id": str(entry.id)}
-
         return whatsapp_service.msg_queued(position or 1, eta, lang)
 
     # --- IN QUEUE ---
@@ -235,7 +255,6 @@ async def _dispatch(
             session.context = {}
             return whatsapp_service.msg_cancelled(lang)
 
-        # Show current position
         entry_id_str = session.context.get("entry_id")
         if entry_id_str:
             position = await queue_service.get_queue_position(
@@ -244,34 +263,32 @@ async def _dispatch(
             if position:
                 return whatsapp_service.msg_info(position, position * 20, lang)
 
-        return (
-            "أنت في الطابور. اكتب 'إلغاء' للخروج."
-            if lang == "ar"
-            else "You are in the queue. Type 'cancel' to leave."
-        )
+        if lang == "ar":
+            return "أنت في الطابور. اكتب 'إلغاء' للخروج."
+        if lang == "ru":
+            return "Вы в очереди. Напишите 'отмена' для отмены."
+        return "You are in the queue. Type 'cancel' to leave."
 
     # --- BEING SERVED ---
     if state == SessionState.being_served:
-        return (
-            "أنت يتم خدمتك حالياً."
-            if lang == "ar"
-            else "You are currently being served."
-        )
+        if lang == "ar":
+            return "أنت يتم خدمتك حالياً."
+        if lang == "ru":
+            return "Вас обслуживают."
+        return "You are currently being served."
 
     # --- DONE ---
     if state == SessionState.done:
-        # Reset to idle for next interaction
         session.state = SessionState.idle
         session.context = {}
         services = await _get_active_services(db, tenant.id)
-        names = [s.name_ar if lang == "ar" else s.name_en for s in services]
-        return whatsapp_service.msg_welcome(names, lang)
+        return whatsapp_service.msg_welcome(_service_names(services, lang), lang)
 
     return None
 
 
 # ---------------------------------------------------------------------------
-# Notification senders (called from queue endpoints or workers)
+# Notification senders (called from queue_service)
 # ---------------------------------------------------------------------------
 
 
@@ -281,7 +298,7 @@ async def send_upcoming_notification(
     entry: QueueEntry,
     tenant: Tenant,
 ) -> None:
-    """Send 'your turn is coming' notification to the customer at position 3."""
+    """Send 'your turn is coming' notification (position 3)."""
     customer = await db.get(Customer, entry.customer_id)
     if not customer or not tenant.d360_api_key:
         return
@@ -309,12 +326,10 @@ async def send_called_notification(
         text=whatsapp_service.msg_called(lang),
     )
 
-    # Transition session to being_served
     from app.models.whatsapp_session import WhatsAppSession as WAS
-    from sqlalchemy import select as sa_select, and_ as sa_and
     result = await db.execute(
-        sa_select(WAS).where(
-            sa_and(WAS.tenant_id == tenant.id, WAS.customer_id == customer.id)
+        select(WAS).where(
+            and_(WAS.tenant_id == tenant.id, WAS.customer_id == customer.id)
         )
     )
     session = result.scalar_one_or_none()

@@ -30,14 +30,18 @@ PHONE_RE = re.compile(r"^\+?\d{9,15}$")
 
 
 def _detect_language(text: str, enabled: list[str]) -> str:
+    """Detect language from text, constrained to tenant's enabled_languages."""
+    enabled = enabled or ["ar", "en"]
     arabic_chars = sum(1 for c in text if "\u0600" <= c <= "\u06ff")
-    if arabic_chars > len(text) * 0.2:
-        return "ar" if "ar" in enabled else (enabled[0] if enabled else "ar")
-    # Rough Cyrillic detection for Russian
     cyrillic_chars = sum(1 for c in text if "\u0400" <= c <= "\u04ff")
+
+    if arabic_chars > len(text) * 0.2 and "ar" in enabled:
+        return "ar"
     if cyrillic_chars > len(text) * 0.2 and "ru" in enabled:
         return "ru"
-    return "en" if "en" in enabled else (enabled[0] if enabled else "en")
+    if "en" in enabled:
+        return "en"
+    return enabled[0]
 
 
 async def _get_or_create_session(

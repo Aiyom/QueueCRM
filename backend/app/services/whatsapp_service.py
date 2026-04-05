@@ -51,20 +51,16 @@ async def send_message(
 
 
 # ---------------------------------------------------------------------------
-# Message templates
+# Message templates — AR / EN / RU
 # ---------------------------------------------------------------------------
 
 
 def msg_welcome(service_names: list[str], lang: str = "ar") -> str:
-    if lang == "ar":
-        services = "\n".join(
-            f"{i+1}. {name}" for i, name in enumerate(service_names)
-        )
-        return (
-            "مرحباً بك! 👋\nيرجى اختيار الخدمة المطلوبة:\n\n"
-            + services
-        )
     services = "\n".join(f"{i+1}. {name}" for i, name in enumerate(service_names))
+    if lang == "ar":
+        return "مرحباً بك! 👋\nيرجى اختيار الخدمة المطلوبة:\n\n" + services
+    if lang == "ru":
+        return "Добро пожаловать! 👋\nВыберите услугу:\n\n" + services
     return "Welcome! 👋\nPlease select a service:\n\n" + services
 
 
@@ -74,6 +70,12 @@ def msg_queued(position: int, eta_minutes: int, lang: str = "ar") -> str:
             f"✅ تم إضافتك للطابور!\n"
             f"موقعك: #{position}\n"
             f"الوقت المتوقع: ~{eta_minutes} دقيقة"
+        )
+    if lang == "ru":
+        return (
+            f"✅ Вы добавлены в очередь!\n"
+            f"Ваша позиция: #{position}\n"
+            f"Примерное ожидание: ~{eta_minutes} мин"
         )
     return (
         f"✅ You have been added to the queue!\n"
@@ -85,34 +87,46 @@ def msg_queued(position: int, eta_minutes: int, lang: str = "ar") -> str:
 def msg_upcoming(lang: str = "ar") -> str:
     if lang == "ar":
         return "⏰ دورك يقترب، يرجى الاستعداد!"
+    if lang == "ru":
+        return "⏰ Скоро ваша очередь, приготовьтесь!"
     return "⏰ Your turn is coming soon, please get ready!"
 
 
 def msg_called(lang: str = "ar") -> str:
     if lang == "ar":
         return "🔔 حان دورك! تفضل الآن."
+    if lang == "ru":
+        return "🔔 Ваша очередь! Пожалуйста, подходите."
     return "🔔 It's your turn! Please come in now."
 
 
 def msg_cancelled(lang: str = "ar") -> str:
     if lang == "ar":
         return "✅ تم إلغاء حجزك."
+    if lang == "ru":
+        return "✅ Ваша запись отменена."
     return "✅ Your booking has been cancelled."
 
 
 def msg_already_in_queue(lang: str = "ar") -> str:
     if lang == "ar":
         return "أنت بالفعل في الطابور. اكتب 'إلغاء' للخروج."
+    if lang == "ru":
+        return "Вы уже в очереди. Напишите 'отмена' чтобы выйти."
     return "You are already in the queue. Type 'cancel' to leave."
 
 
 def msg_invalid_service(lang: str = "ar") -> str:
     if lang == "ar":
         return "اختيار غير صحيح. يرجى إدخال رقم الخدمة."
+    if lang == "ru":
+        return "Неверный выбор. Введите номер услуги."
     return "Invalid selection. Please enter the service number."
 
 
 def msg_info(position: int, eta_minutes: int, lang: str = "ar") -> str:
     if lang == "ar":
         return f"موقعك في الطابور: #{position}، الوقت المتوقع: ~{eta_minutes} دقيقة"
+    if lang == "ru":
+        return f"Ваша позиция в очереди: #{position}, ожидание: ~{eta_minutes} мин"
     return f"Your queue position: #{position}, estimated wait: ~{eta_minutes} min"

@@ -7,6 +7,8 @@ ALLOWED_LANGUAGES = {"ar", "en", "ru"}
 class TenantSettingsResponse(BaseModel):
     enabled_languages: List[str]
     telegram_bot_token: Optional[str]
+    d360_api_key: Optional[str]
+    d360_channel_id: Optional[str]
 
     model_config = {"from_attributes": True}
 
@@ -14,6 +16,8 @@ class TenantSettingsResponse(BaseModel):
 class TenantSettingsUpdate(BaseModel):
     enabled_languages: Optional[List[str]] = None
     telegram_bot_token: Optional[str] = None
+    d360_api_key: Optional[str] = None
+    d360_channel_id: Optional[str] = None
 
     @field_validator("enabled_languages")
     @classmethod

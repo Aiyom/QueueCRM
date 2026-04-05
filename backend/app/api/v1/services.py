@@ -34,6 +34,7 @@ async def create_service(
         tenant_id=tenant_id,
         name_ar=body.name_ar,
         name_en=body.name_en,
+        name_ru=body.name_ru,
         avg_duration_minutes=body.avg_duration_minutes,
         sort_order=body.sort_order,
     )
@@ -59,6 +60,8 @@ async def update_service(
         service.name_ar = body.name_ar
     if body.name_en is not None:
         service.name_en = body.name_en
+    if body.name_ru is not None:
+        service.name_ru = body.name_ru
     if body.avg_duration_minutes is not None:
         service.avg_duration_minutes = body.avg_duration_minutes
     if body.is_active is not None:

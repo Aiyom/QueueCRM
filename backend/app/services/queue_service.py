@@ -12,6 +12,7 @@ from app.models.queue_entry import QueueEntry, QueueStatus
 from app.models.customer import Customer
 from app.models.service import Service
 from app.models.tenant import Tenant
+from sqlalchemy import select as sa_select
 
 logger = structlog.get_logger(__name__)
 
@@ -194,6 +195,7 @@ async def get_queue_entries(
                 "id": str(service.id),
                 "name_ar": service.name_ar,
                 "name_en": service.name_en,
+                "name_ru": service.name_ru,
             } if service else None,
             "created_at": entry.created_at.isoformat(),
         })
@@ -206,7 +208,6 @@ async def call_next(
     tenant_id: uuid.UUID,
 ) -> Optional[QueueEntry]:
     """Pop the next entry from the queue and mark it as 'called'."""
-    # Get the lowest-score member (front of queue)
     members = await redis.zrange(_queue_key(tenant_id), 0, 0)
     if not members:
         return None
@@ -224,6 +225,23 @@ async def call_next(
     await db.refresh(entry)
 
     logger.info("Called next", entry_id=entry_id_str, tenant_id=str(tenant_id))
+
+    # Send "it's your turn" notification via WhatsApp and Telegram
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant:
+        from app.services import bot_service, telegram_bot_service
+        await bot_service.send_called_notification(db, entry, tenant)
+        await telegram_bot_service.send_called_notification(db, entry, tenant)
+
+    # Check if the next person in line should get "upcoming" notification
+    upcoming_ids = await get_entries_to_notify(redis, tenant_id, notify_position=3)
+    if upcoming_ids and tenant:
+        upcoming_entry = await db.get(QueueEntry, uuid.UUID(upcoming_ids[0]))
+        if upcoming_entry:
+            from app.services import bot_service, telegram_bot_service
+            await bot_service.send_upcoming_notification(db, redis, upcoming_entry, tenant)
+            await telegram_bot_service.send_upcoming_notification(db, upcoming_entry, tenant)
+
     return entry
 
 
