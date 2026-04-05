@@ -38,7 +38,20 @@
       "Bash(git init:*)",
       "Bash(git remote:*)",
       "Bash(git branch:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git commit -m 'fix\\(render\\): remove plan field from static site services:*)",
+      "Bash(git commit -m 'fix\\(ts\\): add vite/client types for import.meta.env support:*)",
+      "Bash(git commit -m 'fix\\(marketing\\): remove hardcoded qcrm.sa domain from astro config:*)",
+      "Bash(git commit -m 'fix\\(render\\): use JSON array format for ALLOWED_ORIGINS env var:*)",
+      "Bash(git commit -m 'fix\\(db\\): convert postgresql:// to postgresql+asyncpg:// for async engine:*)",
+      "Bash(git commit -m 'fix\\(alembic\\): convert postgresql:// to asyncpg scheme in migrations env:*)",
+      "Bash(git commit -m 'fix\\(render\\): pin Python 3.12 — SQLAlchemy 2.0.36 incompatible with Python 3.14:*)",
+      "Bash(git commit -m 'fix\\(render\\): add .python-version file to pin Python 3.12:*)",
+      "Bash(git commit -m 'feat\\(seed\\): auto-seed on startup, skip if already seeded:*)",
+      "Bash(git commit -m 'docs\\(claude\\): add Telegram bot + per-tenant language selection to project context:*)",
+      "Bash(git commit -m 'chore: remove outdated prompt file, keep CLAUDE_CODE_PROMPTS \\(2\\).md:*)"
     ],
     "additionalDirectories": [
       "/private/tmp"
