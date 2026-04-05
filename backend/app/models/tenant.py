@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 from sqlalchemy import String, Boolean, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
 import enum
 
 from app.core.database import Base
@@ -31,6 +31,10 @@ class Tenant(Base):
     is_accepting_queue: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     d360_api_key: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     d360_channel_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    enabled_languages: Mapped[List[str]] = mapped_column(
+        ARRAY(String), nullable=False, default=lambda: ["ar", "en"]
+    )
+    telegram_bot_token: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
