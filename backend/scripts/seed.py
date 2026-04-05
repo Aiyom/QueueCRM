@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dotenv import load_dotenv
 load_dotenv(".env")
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from app.core.config import settings
 from app.core.security import hash_password
@@ -23,10 +24,18 @@ import app.models  # noqa: F401 — ensure all models registered
 
 
 async def seed() -> None:
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    db_url = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    engine = create_async_engine(db_url, echo=False)
     Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with Session() as db:
+        # --- Check if already seeded ---
+        existing = await db.scalar(select(SuperAdmin).limit(1))
+        if existing:
+            print("✅ Already seeded, skipping.")
+            await engine.dispose()
+            return
+
         # --- Super Admin ---
         super_admin = SuperAdmin(
             id=uuid.uuid4(),
