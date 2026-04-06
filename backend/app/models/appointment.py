@@ -37,7 +37,7 @@ class Appointment(Base):
         DateTime(timezone=True), nullable=False
     )
     status: Mapped[AppointmentStatus] = mapped_column(
-        nullable=False, default=AppointmentStatus.confirmed
+        String, nullable=False, default=AppointmentStatus.confirmed
     )
     reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     # Set when auto-enqueued to live queue

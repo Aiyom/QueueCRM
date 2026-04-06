@@ -3,8 +3,11 @@ import uuid
 from datetime import date, datetime
 from typing import Optional, List
 
+import structlog
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select, and_
+
+logger = structlog.get_logger(__name__)
 
 from app.core.deps import DBSession, TenantUser, TenantAdmin, get_tenant_id
 from app.models.appointment import Appointment, AppointmentStatus
@@ -157,9 +160,13 @@ async def get_slots(
 ):
     """Return available time slots for a given date (manager view — shows all slots, including past)."""
     tenant_id = get_tenant_id(payload)
-    return await appointment_service.get_available_slots(
-        db, tenant_id, target_date, service_id, skip_past=False
-    )
+    try:
+        return await appointment_service.get_available_slots(
+            db, tenant_id, target_date, service_id, skip_past=False
+        )
+    except Exception as exc:
+        logger.error("get_slots failed", error=str(exc), date=str(target_date), exc_info=True)
+        raise HTTPException(500, detail=f"Slots error: {exc}")
 
 
 @router.get("/appointments/working-days", response_model=List[date])
