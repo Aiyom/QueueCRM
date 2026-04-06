@@ -5,6 +5,7 @@ export interface TenantSettings {
   telegram_bot_token: string | null
   d360_api_key: string | null
   d360_channel_id: string | null
+  manager_telegram_chat_id: string | null
 }
 
 export async function getSettings(): Promise<TenantSettings> {

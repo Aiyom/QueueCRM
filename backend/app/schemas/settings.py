@@ -9,6 +9,7 @@ class TenantSettingsResponse(BaseModel):
     telegram_bot_token: Optional[str]
     d360_api_key: Optional[str]
     d360_channel_id: Optional[str]
+    manager_telegram_chat_id: Optional[str]
 
     model_config = {"from_attributes": True}
 
@@ -18,6 +19,7 @@ class TenantSettingsUpdate(BaseModel):
     telegram_bot_token: Optional[str] = None
     d360_api_key: Optional[str] = None
     d360_channel_id: Optional[str] = None
+    manager_telegram_chat_id: Optional[str] = None
 
     @field_validator("enabled_languages")
     @classmethod

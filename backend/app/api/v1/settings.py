@@ -37,6 +37,8 @@ async def update_settings(
         tenant.d360_api_key = body.d360_api_key or None
     if body.d360_channel_id is not None:
         tenant.d360_channel_id = body.d360_channel_id or None
+    if body.manager_telegram_chat_id is not None:
+        tenant.manager_telegram_chat_id = body.manager_telegram_chat_id or None
 
     await db.commit()
     await db.refresh(tenant)

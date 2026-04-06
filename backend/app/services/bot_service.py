@@ -393,11 +393,16 @@ async def _confirm_booking(db, redis, tenant, customer, session, slot_start_iso,
         local = scheduled_at.astimezone(KSA_TZ)
         date_str = local.strftime("%-d %B %Y")
         time_str = local.strftime("%H:%M")
+        svc = await db.get(Service, service_id) if service_id else None
         service_name = ""
-        if service_id:
-            svc = await db.get(Service, service_id)
-            if svc:
-                service_name = svc.name_ar if lang == "ar" else ((svc.name_ru or svc.name_en or svc.name_ar) if lang == "ru" else (svc.name_en or svc.name_ar))
+        if svc:
+            service_name = svc.name_ar if lang == "ar" else ((svc.name_ru or svc.name_en or svc.name_ar) if lang == "ru" else (svc.name_en or svc.name_ar))
+        # Notify manager
+        from app.services.manager_notifications import notify_manager
+        try:
+            await notify_manager(tenant, customer, appt, svc, action="booked")
+        except Exception as e:
+            logger.warning("Manager notification failed", error=str(e))
         session.state = SessionState.idle
         session.context = {}
         conf = {
@@ -447,6 +452,13 @@ async def _cancel_appointment(db, tenant, customer, session, appt_id, lang) -> t
         return (msg, None)
     await appointment_service.cancel_appointment(db, tenant.id, appt_id)
     await db.commit()
+    # Notify manager
+    from app.services.manager_notifications import notify_manager
+    svc = await db.get(Service, appt.service_id) if appt.service_id else None
+    try:
+        await notify_manager(tenant, customer, appt, svc, action="cancelled")
+    except Exception as e:
+        logger.warning("Manager notification failed", error=str(e))
     session.state = SessionState.idle
     session.context = {}
     msg = {"ar": "✅ تم إلغاء الموعد.", "ru": "✅ Запись отменена.", "en": "✅ Appointment cancelled."}.get(lang, "")

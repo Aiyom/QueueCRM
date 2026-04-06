@@ -127,6 +127,35 @@
       </div>
     </div>
 
+    <!-- Manager notifications -->
+    <div class="card">
+      <h2 class="font-semibold text-gray-900 mb-1">Manager Notifications</h2>
+      <p class="text-sm text-gray-500 mb-4">
+        Receive booking and cancellation alerts via Telegram. Send <code class="bg-gray-100 px-1 rounded">/myid</code> to your bot to get your Chat ID.
+      </p>
+      <div v-if="loadingSettings" class="text-sm text-gray-400">Loading...</div>
+      <div v-else class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Manager Telegram Chat ID</label>
+          <input
+            v-model="managerChatId"
+            type="text"
+            placeholder="e.g. 123456789"
+            class="input w-full"
+          />
+          <p class="text-xs text-gray-400 mt-1">
+            Leave empty to disable. Notifications will fall back to WhatsApp (your business phone) if not set.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button @click="saveManagerNotif" :disabled="savingManagerNotif" class="btn-primary text-sm">
+            {{ savingManagerNotif ? 'Saving...' : 'Save' }}
+          </button>
+          <span v-if="managerNotifSaved" class="text-sm text-green-600">Saved!</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Account info -->
     <div class="card">
       <h2 class="font-semibold text-gray-900 mb-4">Account</h2>
@@ -173,6 +202,9 @@ const d360ApiKey = ref('')
 const d360ChannelId = ref('')
 const savingWhatsApp = ref(false)
 const whatsappSaved = ref(false)
+const managerChatId = ref('')
+const savingManagerNotif = ref(false)
+const managerNotifSaved = ref(false)
 
 const availableLanguages = [
   { code: 'ar', label: 'Arabic', native: 'العربية' },
@@ -196,6 +228,7 @@ async function loadSettings() {
     telegramToken.value = s.telegram_bot_token ?? ''
     d360ApiKey.value = s.d360_api_key ?? ''
     d360ChannelId.value = s.d360_channel_id ?? ''
+    managerChatId.value = s.manager_telegram_chat_id ?? ''
   } finally {
     loadingSettings.value = false
   }
@@ -252,6 +285,17 @@ async function saveWhatsApp() {
     setTimeout(() => { whatsappSaved.value = false }, 3000)
   } finally {
     savingWhatsApp.value = false
+  }
+}
+
+async function saveManagerNotif() {
+  savingManagerNotif.value = true
+  try {
+    await updateSettings({ manager_telegram_chat_id: managerChatId.value || null })
+    managerNotifSaved.value = true
+    setTimeout(() => { managerNotifSaved.value = false }, 3000)
+  } finally {
+    savingManagerNotif.value = false
   }
 }
 

@@ -189,6 +189,14 @@ async def handle_message(
         session.state = SessionState.idle
         session.context = {}
 
+    # /myid — manager can get their chat_id to paste into Settings
+    if text == "/myid":
+        await telegram_service.send_message(
+            bot_token=tenant.telegram_bot_token, chat_id=chat_id,
+            text=f"🆔 Your Telegram Chat ID:\n`{chat_id}`\n\nPaste this in Settings → Manager Telegram Chat ID."
+        )
+        return
+
     saved_lang = session.context.get("language")
     lang = saved_lang if (saved_lang and saved_lang in enabled) else _detect_language(text, enabled)
 
@@ -447,8 +455,14 @@ async def _confirm_booking(db, redis, tenant, customer, session, chat_id, slot_s
         )
         await db.commit()
 
-        # Notify manager via bot if they have Telegram — skip for now, just log
         logger.info("Appointment booked via bot", appointment_id=str(appt.id))
+        # Notify manager
+        from app.services.manager_notifications import notify_manager
+        svc = await db.get(Service, service_id) if service_id else None
+        try:
+            await notify_manager(tenant, customer, appt, svc, action="booked")
+        except Exception as e:
+            logger.warning("Manager notification failed", error=str(e))
 
         local = scheduled_at.astimezone(KSA_TZ)
         date_str = local.strftime("%-d %B %Y")
@@ -526,6 +540,14 @@ async def _cancel_appointment(db, tenant, customer, session, appt_id, lang) -> t
 
     await appointment_service.cancel_appointment(db, tenant.id, appt_id)
     await db.commit()
+
+    # Notify manager
+    from app.services.manager_notifications import notify_manager
+    svc = await db.get(Service, appt.service_id) if appt.service_id else None
+    try:
+        await notify_manager(tenant, customer, appt, svc, action="cancelled")
+    except Exception as e:
+        logger.warning("Manager notification failed", error=str(e))
 
     session.state = SessionState.idle
     session.context = {k: v for k, v in session.context.items() if k in ("language",)}

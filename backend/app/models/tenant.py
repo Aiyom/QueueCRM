@@ -35,6 +35,7 @@ class Tenant(Base):
         ARRAY(String), nullable=False, default=lambda: ["ar", "en"]
     )
     telegram_bot_token: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    manager_telegram_chat_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
