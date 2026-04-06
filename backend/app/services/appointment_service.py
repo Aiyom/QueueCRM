@@ -93,6 +93,7 @@ async def get_available_slots(
     tenant_id: uuid.UUID,
     target_date: date,
     service_id: Optional[uuid.UUID] = None,
+    skip_past: bool = True,
 ) -> list[TimeSlot]:
     """Return all available time slots for a given date and service."""
     schedule = await get_schedule_for_date(db, tenant_id, target_date)
@@ -105,7 +106,7 @@ async def get_available_slots(
     step_minutes = 30  # default
     if service_id:
         service = await db.get(Service, service_id)
-        if service:
+        if service and service.avg_duration_minutes > 0:
             step_minutes = service.avg_duration_minutes
 
     # Build all slots for the day
@@ -120,8 +121,8 @@ async def get_available_slots(
     while current + timedelta(minutes=step_minutes) <= close_dt:
         slot_end = current + timedelta(minutes=step_minutes)
 
-        # Skip slots in the past
-        if slot_end <= now:
+        # Skip slots in the past (for customer-facing booking; manager can book any slot)
+        if skip_past and slot_end <= now:
             current = slot_end
             continue
 

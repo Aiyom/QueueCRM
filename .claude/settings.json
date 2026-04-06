@@ -51,7 +51,10 @@
       "Bash(git commit -m 'fix\\(render\\): add .python-version file to pin Python 3.12:*)",
       "Bash(git commit -m 'feat\\(seed\\): auto-seed on startup, skip if already seeded:*)",
       "Bash(git commit -m 'docs\\(claude\\): add Telegram bot + per-tenant language selection to project context:*)",
-      "Bash(git commit -m 'chore: remove outdated prompt file, keep CLAUDE_CODE_PROMPTS \\(2\\).md:*)"
+      "Bash(git commit -m 'chore: remove outdated prompt file, keep CLAUDE_CODE_PROMPTS \\(2\\).md:*)",
+      "Bash(node -e 'const en = require\\('\\\\''/Users/aiyom/ai_tasks/crm/marketing/src/i18n/en.ts'\\\\''\\); const ar = require\\('\\\\''/Users/aiyom/ai_tasks/crm/marketing/src/i18n/ar.ts'\\\\''\\); const ru = require\\('\\\\''/Users/aiyom/ai_tasks/crm/marketing/src/i18n/ru.ts'\\\\''\\); \\\\:*)",
+      "Bash(grep -r \"\\\\\"[A-Z][a-z]\" /Users/aiyom/ai_tasks/crm/frontend/src/views/*.vue)",
+      "Bash(git commit -m 'fix: TypeScript errors in AppointmentsView:*)"
     ],
     "additionalDirectories": [
       "/private/tmp"

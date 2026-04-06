@@ -155,10 +155,10 @@ async def get_slots(
     target_date: date = Query(...),
     service_id: Optional[uuid.UUID] = Query(None),
 ):
-    """Return available time slots for a given date."""
+    """Return available time slots for a given date (manager view — shows all slots, including past)."""
     tenant_id = get_tenant_id(payload)
     return await appointment_service.get_available_slots(
-        db, tenant_id, target_date, service_id
+        db, tenant_id, target_date, service_id, skip_past=False
     )
 
 
