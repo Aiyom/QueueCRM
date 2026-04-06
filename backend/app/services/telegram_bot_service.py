@@ -145,10 +145,12 @@ def _slots_keyboard(slots, lang: str) -> list[list[dict]]:
     buttons = []
     row = []
     for slot in slots:
-        dt = datetime.fromisoformat(slot.start) if hasattr(slot, "start") else datetime.fromisoformat(slot["start"])
-        local = dt.astimezone(KSA_TZ)
+        # slot.start is a datetime object (TimeSlot Pydantic model)
+        start_dt = slot.start if isinstance(slot.start, datetime) else datetime.fromisoformat(slot.start)
+        local = start_dt.astimezone(KSA_TZ)
         label = local.strftime("%H:%M")
-        row.append({"text": label, "callback_data": f"slot:{slot.start if hasattr(slot, 'start') else slot['start']}"})
+        iso = start_dt.isoformat()
+        row.append({"text": label, "callback_data": f"slot:{iso}"})
         if len(row) == 2:
             buttons.append(row)
             row = []

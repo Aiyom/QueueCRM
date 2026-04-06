@@ -171,7 +171,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-          <input type="date" v-model="createForm.date" class="input" @change="loadSlots" />
+          <input type="date" v-model="createForm.date" class="input" @change="loadSlots" @input="loadSlots" />
         </div>
         <div v-if="createForm.date">
           <label class="block text-sm font-medium text-gray-700 mb-1">Time slot</label>
@@ -303,6 +303,14 @@ watch(showCreate, (v) => {
   if (v) {
     createForm.value = { phone: '', service_id: '', date: today, scheduled_at: '', notes: '' }
     slots.value = []
+    loadSlots()
+  }
+})
+
+// Reload slots when service changes
+watch(() => createForm.value.service_id, () => {
+  if (showCreate.value && createForm.value.date) {
+    loadSlots()
   }
 })
 

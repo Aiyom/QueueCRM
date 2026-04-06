@@ -137,7 +137,8 @@ def _format_slots(slots: list, lang: str) -> str:
     lines = []
     for i, slot in enumerate(slots):
         start = slot.start if hasattr(slot, "start") else slot["start"]
-        dt = datetime.fromisoformat(start).astimezone(KSA_TZ)
+        start_dt = start if isinstance(start, datetime) else datetime.fromisoformat(start)
+        dt = start_dt.astimezone(KSA_TZ)
         available = slot.available if hasattr(slot, "available") else slot["available"]
         lines.append(f"{i+1}. {dt.strftime('%H:%M')} ({available} {'مكان' if lang=='ar' else ('мест' if lang=='ru' else 'left')})")
     header = {
@@ -366,7 +367,12 @@ async def _show_slots(db, tenant, session, lang) -> tuple:
                  else ("Нет слотов. Выберите другую дату:" if lang == "ru" else "No slots. Choose another date:"))
                 + "\n\n" + _format_working_days(days, lang), None)
     # Save slot start times in context for selection by number
-    slot_starts = [s.start if hasattr(s, "start") else s["start"] for s in slots]
+    # Store as ISO strings so they survive JSON serialisation in session.context
+    slot_starts = [
+        (s.start.isoformat() if isinstance(s.start, datetime) else s.start)
+        if hasattr(s, "start") else s["start"]
+        for s in slots
+    ]
     session.context = {**session.context, "booking_slots": slot_starts}
     return (_format_slots(slots, lang), None)
 
